@@ -7,7 +7,8 @@
  *  - doGet: returns all responses as JSON, used by "View Responses"
  *
  * Sheet columns (created by setup()):
- *  A: ID | B: Timestamp | C: Name | D: Email | E: Region | F: Last Updated
+ *  A: ID | B: Timestamp | C: Name | D: Email | E: Region | F: Status
+ *  G: Date of Registration | H: Last Updated
  *
  * Setup instructions are in README.md.
  */
@@ -25,7 +26,9 @@ function doGet(e) {
       name: data[i][2],
       email: data[i][3],
       region: data[i][4],
-      lastUpdated: data[i][5]
+      status: data[i][5],
+      dateRegistered: data[i][6],
+      lastUpdated: data[i][7]
     });
   }
 
@@ -45,21 +48,28 @@ function doPost(e) {
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][0]) === String(id)) {
         var row = i + 1;
+        var newStatus = e.parameter.status || data[i][5];
         sheet.getRange(row, 3).setValue(e.parameter.name || data[i][2]);
         sheet.getRange(row, 4).setValue(e.parameter.email || data[i][3]);
         sheet.getRange(row, 5).setValue(e.parameter.region || data[i][4]);
-        sheet.getRange(row, 6).setValue(new Date());
+        sheet.getRange(row, 6).setValue(newStatus);
+        // Only keep a Date of Registration when status is "Registered"; clear it otherwise.
+        sheet.getRange(row, 7).setValue(newStatus === 'Registered' ? (e.parameter.dateRegistered || '') : '');
+        sheet.getRange(row, 8).setValue(new Date());
         break;
       }
     }
   } else {
     var id = Utilities.getUuid();
+    var status = e.parameter.status || 'Not Registered';
     sheet.appendRow([
       id,
       new Date(),
       e.parameter.name || '',
       e.parameter.email || '',
       e.parameter.region || '',
+      status,
+      status === 'Registered' ? (e.parameter.dateRegistered || '') : '',
       ''
     ]);
   }
@@ -73,5 +83,5 @@ function doPost(e) {
 // to create the header row.
 function setup() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.appendRow(['ID', 'Timestamp', 'Name (Surname, Given Name, Middle Name)', 'Email', 'Place of Registration', 'Last Updated']);
+  sheet.appendRow(['ID', 'Timestamp', 'Name (Surname, Given Name, Middle Name)', 'Email', 'Place of Registration', 'Status', 'Date of Registration', 'Last Updated']);
 }
