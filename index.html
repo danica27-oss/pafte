@@ -291,14 +291,15 @@
   tbody tr:hover { background: rgba(110,20,35,0.025); }
 
   /* proportioned so Name → Update all fit without horizontal scroll on desktop */
-  .col-name   { width: 15%; }
-  .col-email  { width: 15%; }
-  .col-region { width: 15%; }
-  .col-status { width: 9%; }
-  .col-license{ width: 9%; }
-  .col-date   { width: 9%; }
-  .col-submitted { width: 10%; }
-  .col-updated   { width: 10%; }
+  .col-name   { width: 13%; }
+  .col-email  { width: 16%; }
+  .col-region { width: 13%; }
+  .col-pafteOrNo { width: 8%; }
+  .col-status { width: 8%; }
+  .col-license{ width: 8%; }
+  .col-date   { width: 8%; }
+  .col-submitted { width: 9%; }
+  .col-updated   { width: 9%; }
   .col-action { width: 8%; }
 
   td input[type="text"], td input[type="email"], td select {
@@ -631,6 +632,7 @@
     const payload = {
       name: form.fullName.value.trim().toUpperCase(),
       email: form.email.value.trim(),
+      pafteOrNo: form.pafteOrNo.value.trim().toUpperCase(),
       region: region,
       status: statusSelect.value,
       licenseNo: licenseNo,
@@ -883,7 +885,7 @@
     const newRegion = newRegionSelectVal === '__other__'
       ? row.querySelector('.edit-region-other').value.trim().toUpperCase()
       : newRegionSelectVal;
-    const newPafteOrNo = row.querySelector('.edit-pafteOrNo').value.trim();
+    const newPafteOrNo = row.querySelector('.edit-pafteOrNo').value.trim().toUpperCase();
     const newStatus = row.querySelector('.edit-status').value;
     const isRegistered = newStatus === 'Registered';
     const newLicenseNo = isRegistered ? row.querySelector('.edit-license').value.trim().toUpperCase() : '';
@@ -906,7 +908,7 @@
       r.name = newName;
       r.email = newEmail;
       r.region = newRegion;
-      r.pafteOrNo = newPafteOrNo,
+      r.pafteOrNo = newPafteOrNo;
       r.status = newStatus;
       r.licenseNo = newLicenseNo;
       r.dateRegistered = newDateRegistered;
@@ -923,7 +925,7 @@
 
   /* ---------- Export ---------- */
   function buildExportRows() {
-    const header = ['Name', 'Email', 'Region', , 'PAFTE OR No.', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
+    const header = ['Name', 'Email', 'Region', 'PAFTE OR No.', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
     const rows = responses.map(r => {
       const isRegistered = r.status === 'Registered';
       return [
@@ -955,6 +957,22 @@
     }
     const { header, rows } = buildExportRows();
     const ws = XLSX.utils.aoa_to_sheet([header].concat(rows));
+
+    // Reasonable column widths so the sheet reads well when printed
+    ws['!cols'] = header.map((h, i) => ({
+      wch: i === 0 || i === 1 ? 26 : (i === 2 ? 22 : 16)
+    }));
+
+    // Print setup: landscape orientation, fit all columns to one page wide
+    ws['!pageSetup'] = {
+      orientation: 'landscape',
+      fitToWidth: 1,
+      fitToHeight: 0,
+      paperSize: 9 // A4
+    };
+    ws['!fitToPage'] = true;
+    ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Responses');
     XLSX.writeFile(wb, 'pafte-verification-responses.xlsx');
@@ -968,16 +986,47 @@
     }
     const { header, rows } = buildExportRows();
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+
+    // Landscape A4 gives the most usable width for a 9-column table
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const generatedOn = new Date().toLocaleString();
+
     doc.setFontSize(14);
-    doc.text('PAFTE Verification — Responses', 14, 16);
+    doc.text('PAFTE Verification — Responses', 30, 28);
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text('Generated ' + generatedOn, 30, 42);
+    doc.setTextColor(0);
+
     doc.autoTable({
-      startY: 22,
+      startY: 52,
       head: [header],
       body: rows,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [110, 20, 35] }
+      styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak', valign: 'top' },
+      headStyles: { fillColor: [110, 20, 35], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250, 246, 238] },
+      theme: 'grid',
+      margin: { left: 24, right: 24, top: 40, bottom: 30 },
+      tableWidth: 'auto', // shrinks/expands columns to fit the page width, so nothing gets cut off
+      // Real (selectable/searchable) text is drawn for every cell — this is a vector PDF, not an image.
+      didDrawPage: function () {
+        doc.setFontSize(8);
+        doc.setTextColor(130);
+        doc.text('PAFTE Verification', 24, pageHeight - 15);
+      }
     });
+
+    // Page numbers, added after the table is fully laid out so the total page count is known
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(130);
+      doc.text('Page ' + i + ' of ' + pageCount, pageWidth - 90, pageHeight - 15);
+    }
+
     doc.save('pafte-verification-responses.pdf');
   });
 
