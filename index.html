@@ -791,7 +791,7 @@
     }
 
     let html = '<table><thead><tr>' +
-      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-region">Region</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
+      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-region">Region</th><th class="col-pafteOrNo">PAFTE OR No.</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
       '</tr></thead><tbody>';
 
     responses.forEach((r, idx) => {
@@ -832,7 +832,7 @@
       const isOther = regionEditSelect.value === '__other__';
       regionEditOther.style.display = isOther ? 'block' : 'none';
     });
-    row.querySelector('.cell-pafteOrNo').innerHTML = `<input type="email" class="edit-pafteOrNo" value="${escapeAttr(r.pafteOrNo)}">`;
+    row.querySelector('.cell-pafteOrNo').innerHTML = `<input type="text" class="edit-pafteOrNo" value="${escapeAttr(r.pafteOrNo)}">`;
     row.querySelector('.cell-status').innerHTML = `
       <select class="edit-status">
         <option value="Registered" ${isRegistered ? 'selected' : ''}>Registered</option>
@@ -906,7 +906,7 @@
       r.name = newName;
       r.email = newEmail;
       r.region = newRegion;
-      r.pafteOrNo: newPafteOrNo,
+      r.pafteOrNo = newPafteOrNo,
       r.status = newStatus;
       r.licenseNo = newLicenseNo;
       r.dateRegistered = newDateRegistered;
@@ -923,7 +923,7 @@
 
   /* ---------- Export ---------- */
   function buildExportRows() {
-    const header = ['Name', 'Email', 'Region', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
+    const header = ['Name', 'Email', 'Region', , 'PAFTE OR No.', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
     const rows = responses.map(r => {
       const isRegistered = r.status === 'Registered';
       return [
