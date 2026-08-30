@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAFTE Verification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --maroon: #6E1423;
+    --maroon-dark: #4E0E19;
+    --gold: #C9A227;
+    --cream: #FAF6EE;
+    --panel: #FFFFFF;
+    --ink: #241C15;
+    --ink-soft: #6B5D4E;
+    --line: rgba(36, 28, 21, 0.14);
+    --ok: #2E5E3E;
+    --err: #8A2A2A;
+    --radius: 6px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--cream);
+    background-image: radial-gradient(circle at 50% 0%, rgba(110,20,35,0.05), transparent 55%);
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    padding: 40px 16px 80px;
+  }
+
+  .page { max-width: 720px; margin: 0 auto; }
+
+  /* ── Masthead ───────────────────────────── */
+  .masthead { text-align: center; margin-bottom: 34px; }
+
+  .seal {
+    width: 64px; height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--maroon);
+    box-shadow: 0 0 0 4px var(--cream), 0 0 0 5px var(--line);
+  }
+  .seal svg { width: 30px; height: 30px; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 8px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: 0.02em;
+    margin: 0 0 8px;
+    color: var(--maroon-dark);
+  }
+
+  .sub {
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin: 0 auto;
+    max-width: 46ch;
+  }
+
+  /* ── Tabs ───────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    background: rgba(110,20,35,0.06);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 5px;
+    margin-bottom: 24px;
+  }
+  .tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 11px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .tab.active { background: var(--maroon); color: var(--cream); }
+  .tab:not(.active):hover { background: rgba(110,20,35,0.1); }
+  .tab:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  /* ── Panel ───────────────────────────── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 32px;
+    box-shadow: 0 10px 30px rgba(36,28,21,0.06);
+  }
+  .panel.hidden { display: none; }
+
+  /* ── Form ───────────────────────────── */
+  .field { margin-bottom: 22px; }
+  .field:last-of-type { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 7px;
+  }
+
+  input[type="text"], input[type="email"], select {
+    width: 100%;
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    padding: 11px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+  input:focus, select:focus { border-color: var(--maroon); }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+  .hint { font-size: 12px; color: var(--ink-soft); opacity: 0.8; margin-top: 5px; }
+
+  select { appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B5D4E' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 34px;
+  }
+
+  .actions-row { margin-top: 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+  button.primary {
+    background: var(--maroon);
+    color: var(--cream);
+    border: none;
+    padding: 13px 30px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  button.primary:hover { background: var(--maroon-dark); }
+  button.primary:disabled { opacity: 0.55; cursor: wait; }
+
+  .status { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; min-height: 16px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+
+  /* ── Responses toolbar ───────────────────────────── */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .toolbar-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  button.ghost {
+    background: transparent;
+    border: 1.5px solid var(--line);
+    color: var(--ink);
+    padding: 9px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  button.ghost:hover { border-color: var(--maroon); background: rgba(110,20,35,0.05); }
+  button.ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── Table ───────────────────────────── */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    text-align: left;
+    background: rgba(110,20,35,0.06);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(110,20,35,0.025); }
+
+  td input[type="text"], td input[type="email"], td select {
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+
+  button.small {
+    background: var(--maroon);
+    color: var(--cream);
+    border: none;
+    padding: 7px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button.small:hover { background: var(--maroon-dark); }
+  button.small.secondary {
+    background: transparent;
+    border: 1.5px solid var(--line);
+    color: var(--ink);
+    margin-left: 6px;
+  }
+  button.small.secondary:hover { border-color: var(--maroon); }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+
+  .footer-line {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    opacity: 0.7;
+    text-align: center;
+  }
+
+  @media (max-width: 520px) {
+    .panel { padding: 22px; }
+    h1 { font-size: 28px; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="masthead">
+    <div class="seal">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L14.4 8.2L21 9L16 13.6L17.4 20L12 16.6L6.6 20L8 13.6L3 9L9.6 8.2L12 2Z" stroke="#C9A227" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p class="eyebrow">Philippine Association For Teacher Education</p>
+    <h1>PAFTE Verification</h1>
+    <p class="sub">Registration and verification portal for member records.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" id="tabRecord" data-tab="record">Record New Entry</button>
+    <button class="tab" id="tabResponses" data-tab="responses">View Responses</button>
+  </div>
+
+  <!-- ── RECORD PANEL ────────────────────────── -->
+  <section id="recordView" class="panel">
+    <form id="regForm">
+      <div class="field">
+        <label for="fullName">Name (Surname, Given Name, Middle Name)</label>
+        <input type="text" id="fullName" name="fullName" placeholder="Dela Cruz, Juan, Santos" required>
+        <p class="hint">Format: Surname, Given Name, Middle Name</p>
+      </div>
+
+      <div class="field">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="juan.delacruz@email.com" required>
+      </div>
+
+      <div class="field">
+        <label for="region">Place of Registration</label>
+        <select id="region" name="region" required>
+          <option value="" disabled selected>Select a region</option>
+          <option>NCR – National Capital Region</option>
+          <option>CAR – Cordillera Administrative Region</option>
+          <option>Region I – Ilocos Region</option>
+          <option>Region II – Cagayan Valley</option>
+          <option>Region III – Central Luzon</option>
+          <option>Region IV-A – CALABARZON</option>
+          <option>MIMAROPA Region</option>
+          <option>Region V – Bicol Region</option>
+          <option>Region VI – Western Visayas</option>
+          <option>Region VII – Central Visayas</option>
+          <option>Region VIII – Eastern Visayas</option>
+          <option>Region IX – Zamboanga Peninsula</option>
+          <option>Region X – Northern Mindanao</option>
+          <option>Region XI – Davao Region</option>
+          <option>Region XII – SOCCSKSARGEN</option>
+          <option>Region XIII – Caraga</option>
+          <option>BARMM – Bangsamoro Autonomous Region in Muslim Mindanao</option>
+          <option value="__other__">Other (please specify)</option>
+        </select>
+      </div>
+
+      <div class="field" id="otherRegionField" style="display:none;">
+        <label for="regionOther">Specify Region</label>
+        <input type="text" id="regionOther" name="regionOther" placeholder="Enter region">
+      </div>
+
+      <div class="actions-row">
+        <button type="submit" class="primary" id="submitBtn">Record Entry</button>
+        <p class="status" id="status"></p>
+      </div>
+    </form>
+  </section>
+
+  <!-- ── RESPONSES PANEL ────────────────────────── -->
+  <section id="responsesView" class="panel hidden">
+    <div class="toolbar">
+      <button class="ghost" id="refreshBtn">↻ Load / Refresh Responses</button>
+      <div class="toolbar-group">
+        <button class="ghost" id="exportCsv" disabled>Export CSV</button>
+        <button class="ghost" id="exportXlsx" disabled>Export Excel</button>
+        <button class="ghost" id="exportPdf" disabled>Export PDF</button>
+      </div>
+    </div>
+    <p class="status" id="responsesStatus"></p>
+    <div class="table-wrap" id="tableWrap">
+      <div class="empty-state">No responses loaded yet. Click "Load / Refresh Responses" above.</div>
+    </div>
+  </section>
+
+  <p class="footer-line">Entries are written directly to the connected registration sheet.</p>
+</div>
+
+<!-- Export libraries (loaded lazily, only needed on the Responses tab) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+
+<script>
+  // ── CONFIGURE THIS ──────────────────────────────────────────────
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBfR-xQ2ZsVLXrPTCMUsDH86aMtpgky9fPyDtHbnsFU3xp4nrZ8lAucVWxX2tR0ICO/exechttps://script.google.com/macros/s/AKfycbzBfR-xQ2ZsVLXrPTCMUsDH86aMtpgky9fPyDtHbnsFU3xp4nrZ8lAucVWxX2tR0ICO/exec";
+  // ─────────────────────────────────────────────────────────────────
+
+  let responses = []; // holds the currently loaded response objects
+
+  /* ---------- Tabs ---------- */
+  const tabRecord = document.getElementById('tabRecord');
+  const tabResponses = document.getElementById('tabResponses');
+  const recordView = document.getElementById('recordView');
+  const responsesView = document.getElementById('responsesView');
+
+  tabRecord.addEventListener('click', () => switchTab('record'));
+  tabResponses.addEventListener('click', () => switchTab('responses'));
+
+  function switchTab(tab) {
+    const isRecord = tab === 'record';
+    tabRecord.classList.toggle('active', isRecord);
+    tabResponses.classList.toggle('active', !isRecord);
+    recordView.classList.toggle('hidden', !isRecord);
+    responsesView.classList.toggle('hidden', isRecord);
+  }
+
+  /* ---------- Region "Other" toggle ---------- */
+  const regionSelect = document.getElementById('region');
+  const otherRegionField = document.getElementById('otherRegionField');
+  const regionOtherInput = document.getElementById('regionOther');
+  regionSelect.addEventListener('change', () => {
+    const isOther = regionSelect.value === '__other__';
+    otherRegionField.style.display = isOther ? 'block' : 'none';
+    regionOtherInput.required = isOther;
+  });
+
+  /* ---------- Record submit ---------- */
+  const form = document.getElementById('regForm');
+  const statusEl = document.getElementById('status');
+  const submitBtn = document.getElementById('submitBtn');
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    if (SCRIPT_URL.includes('PASTE_YOUR')) {
+      statusEl.textContent = 'Not connected yet — add your Apps Script URL in index.html (see README.md).';
+      statusEl.className = 'status err';
+      return;
+    }
+
+    const region = regionSelect.value === '__other__' ? regionOtherInput.value.trim() : regionSelect.value;
+
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Recording…';
+    statusEl.className = 'status';
+
+    const data = new URLSearchParams({
+      action: 'create',
+      name: form.fullName.value.trim(),
+      email: form.email.value.trim(),
+      region: region
+    });
+
+    try {
+      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: data });
+      statusEl.textContent = 'Entry recorded. Thank you.';
+      statusEl.className = 'status ok';
+      form.reset();
+      otherRegionField.style.display = 'none';
+    } catch (err) {
+      statusEl.textContent = 'Could not reach the ledger. Check your connection and try again.';
+      statusEl.className = 'status err';
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  /* ---------- Load responses ---------- */
+  const refreshBtn = document.getElementById('refreshBtn');
+  const responsesStatus = document.getElementById('responsesStatus');
+  const tableWrap = document.getElementById('tableWrap');
+  const exportCsvBtn = document.getElementById('exportCsv');
+  const exportXlsxBtn = document.getElementById('exportXlsx');
+  const exportPdfBtn = document.getElementById('exportPdf');
+
+  refreshBtn.addEventListener('click', loadResponses);
+
+  async function loadResponses() {
+    if (SCRIPT_URL.includes('PASTE_YOUR')) {
+      responsesStatus.textContent = 'Not connected yet — add your Apps Script URL in index.html (see README.md).';
+      responsesStatus.className = 'status err';
+      return;
+    }
+
+    refreshBtn.disabled = true;
+    responsesStatus.textContent = 'Loading responses…';
+    responsesStatus.className = 'status';
+
+    try {
+      const res = await fetch(SCRIPT_URL, { method: 'GET' });
+      if (!res.ok) throw new Error('Bad response');
+      responses = await res.json();
+      renderTable();
+      responsesStatus.textContent = responses.length + ' response(s) loaded.';
+      responsesStatus.className = 'status ok';
+    } catch (err) {
+      responsesStatus.textContent = 'Could not load responses. See README.md troubleshooting section (this is usually a CORS/deployment setting).';
+      responsesStatus.className = 'status err';
+    } finally {
+      refreshBtn.disabled = false;
+      const hasData = responses.length > 0;
+      exportCsvBtn.disabled = !hasData;
+      exportXlsxBtn.disabled = !hasData;
+      exportPdfBtn.disabled = !hasData;
+    }
+  }
+
+  function renderTable() {
+    if (!responses.length) {
+      tableWrap.innerHTML = '<div class="empty-state">No responses recorded yet.</div>';
+      return;
+    }
+
+    let html = '<table><thead><tr>' +
+      '<th>Name</th><th>Email</th><th>Region</th><th>Registered</th><th>Last Updated</th><th></th>' +
+      '</tr></thead><tbody>';
+
+    responses.forEach((r, idx) => {
+      html += `<tr data-idx="${idx}">
+        <td class="cell-name">${escapeHtml(r.name)}</td>
+        <td class="cell-email">${escapeHtml(r.email)}</td>
+        <td class="cell-region">${escapeHtml(r.region)}</td>
+        <td>${formatDate(r.timestamp)}</td>
+        <td>${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
+        <td><button class="small update-btn" data-idx="${idx}">Update</button></td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    tableWrap.innerHTML = html;
+
+    document.querySelectorAll('.update-btn').forEach(btn => {
+      btn.addEventListener('click', () => enterEditMode(parseInt(btn.dataset.idx, 10)));
+    });
+  }
+
+  function enterEditMode(idx) {
+    const row = document.querySelector(`tr[data-idx="${idx}"]`);
+    const r = responses[idx];
+
+    row.querySelector('.cell-name').innerHTML = `<input type="text" class="edit-name" value="${escapeAttr(r.name)}">`;
+    row.querySelector('.cell-email').innerHTML = `<input type="email" class="edit-email" value="${escapeAttr(r.email)}">`;
+    row.querySelector('.cell-region').innerHTML = `<input type="text" class="edit-region" value="${escapeAttr(r.region)}">`;
+
+    const actionCell = row.querySelector('td:last-child');
+    actionCell.innerHTML = `
+      <button class="small save-btn" data-idx="${idx}">Save</button>
+      <button class="small secondary cancel-btn" data-idx="${idx}">Cancel</button>
+    `;
+
+    actionCell.querySelector('.save-btn').addEventListener('click', () => saveEdit(idx));
+    actionCell.querySelector('.cancel-btn').addEventListener('click', renderTable);
+  }
+
+  async function saveEdit(idx) {
+    const row = document.querySelector(`tr[data-idx="${idx}"]`);
+    const r = responses[idx];
+
+    const newName = row.querySelector('.edit-name').value.trim();
+    const newEmail = row.querySelector('.edit-email').value.trim();
+    const newRegion = row.querySelector('.edit-region').value.trim();
+
+    const data = new URLSearchParams({
+      action: 'update',
+      id: r.id,
+      name: newName,
+      email: newEmail,
+      region: newRegion
+    });
+
+    try {
+      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: data });
+      r.name = newName;
+      r.email = newEmail;
+      r.region = newRegion;
+      r.lastUpdated = new Date().toISOString();
+      responsesStatus.textContent = 'Record updated.';
+      responsesStatus.className = 'status ok';
+    } catch (err) {
+      responsesStatus.textContent = 'Could not save the update. Try again.';
+      responsesStatus.className = 'status err';
+    } finally {
+      renderTable();
+    }
+  }
+
+  /* ---------- Export ---------- */
+  exportCsvBtn.addEventListener('click', () => {
+    const rows = [['Name', 'Email', 'Region', 'Registered', 'Last Updated']].concat(
+      responses.map(r => [r.name, r.email, r.region, formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
+    );
+    const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'pafte-verification-responses.csv');
+  });
+
+  exportXlsxBtn.addEventListener('click', () => {
+    if (typeof XLSX === 'undefined') {
+      responsesStatus.textContent = 'Excel export library did not load. Check your connection and try again.';
+      responsesStatus.className = 'status err';
+      return;
+    }
+    const rows = [['Name', 'Email', 'Region', 'Registered', 'Last Updated']].concat(
+      responses.map(r => [r.name, r.email, r.region, formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
+    );
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Responses');
+    XLSX.writeFile(wb, 'pafte-verification-responses.xlsx');
+  });
+
+  exportPdfBtn.addEventListener('click', () => {
+    if (typeof window.jspdf === 'undefined') {
+      responsesStatus.textContent = 'PDF export library did not load. Check your connection and try again.';
+      responsesStatus.className = 'status err';
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('PAFTE Verification — Responses', 14, 16);
+    doc.autoTable({
+      startY: 22,
+      head: [['Name', 'Email', 'Region', 'Registered', 'Last Updated']],
+      body: responses.map(r => [r.name, r.email, r.region, formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : '']),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [110, 20, 35] }
+    });
+    doc.save('pafte-verification-responses.pdf');
+  });
+
+  /* ---------- Helpers ---------- */
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function csvEscape(val) {
+    const s = String(val ?? '');
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function formatDate(val) {
+    if (!val) return '';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleString();
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/\n/g, ' ');
+  }
+</script>
+
+</body>
+</html>
