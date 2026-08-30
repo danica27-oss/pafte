@@ -215,7 +215,8 @@
   .dup-actions button.small:hover { background: #6E4700; }
 
   /* wider layout while viewing the responses table */
-  .page.responses-active { max-width: 1080px; }
+  .page.responses-active { max-width: 1360px; }
+  .page.responses-active #responsesView.panel { padding: 28px 24px; }
 
   button.primary {
     background: var(--maroon);
@@ -266,37 +267,51 @@
 
   /* ── Table ───────────────────────────── */
   .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
   thead th {
     text-align: left;
     background: rgba(110,20,35,0.06);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 10.5px;
-    letter-spacing: 0.05em;
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     color: var(--ink-soft);
-    padding: 10px 12px;
+    padding: 9px 8px;
     border-bottom: 1px solid var(--line);
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.3;
   }
   tbody td {
-    padding: 11px 12px;
+    padding: 9px 8px;
     border-bottom: 1px solid var(--line);
     vertical-align: top;
+    word-break: break-word;
   }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover { background: rgba(110,20,35,0.025); }
 
+  /* proportioned so Name → Update all fit without horizontal scroll on desktop */
+  .col-name   { width: 15%; }
+  .col-email  { width: 15%; }
+  .col-region { width: 15%; }
+  .col-status { width: 9%; }
+  .col-license{ width: 9%; }
+  .col-date   { width: 9%; }
+  .col-submitted { width: 10%; }
+  .col-updated   { width: 10%; }
+  .col-action { width: 8%; }
+
   td input[type="text"], td input[type="email"], td select {
-    padding: 7px 8px;
-    font-size: 13px;
+    padding: 6px 7px;
+    font-size: 12px;
+    width: 100%;
   }
 
   button.small {
     background: var(--maroon);
     color: var(--cream);
     border: none;
-    padding: 7px 12px;
+    padding: 6px 10px;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10.5px;
     letter-spacing: 0.04em;
@@ -769,21 +784,21 @@
     }
 
     let html = '<table><thead><tr>' +
-      '<th>Name</th><th>Email</th><th>Region</th><th>Status</th><th>License No.</th><th>Date Registered</th><th>Submitted</th><th>Last Updated</th><th></th>' +
+      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-region">Region</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
       '</tr></thead><tbody>';
 
     responses.forEach((r, idx) => {
       const isRegistered = (r.status || '').toLowerCase() === 'registered';
       html += `<tr data-idx="${idx}">
-        <td class="cell-name">${escapeHtml(r.name)}</td>
-        <td class="cell-email">${escapeHtml(r.email)}</td>
-        <td class="cell-region">${escapeHtml(r.region)}</td>
-        <td class="cell-status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
-        <td class="cell-license">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
-        <td class="cell-date-registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
-        <td>${formatDate(r.timestamp)}</td>
-        <td>${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
-        <td><button class="small update-btn" data-idx="${idx}">Update</button></td>
+        <td class="cell-name col-name">${escapeHtml(r.name)}</td>
+        <td class="cell-email col-email">${escapeHtml(r.email)}</td>
+        <td class="cell-region col-region">${escapeHtml(r.region)}</td>
+        <td class="cell-status col-status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
+        <td class="cell-license col-license">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
+        <td class="cell-date-registered col-date">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
+        <td class="col-submitted">${formatDate(r.timestamp)}</td>
+        <td class="col-updated">${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
+        <td class="col-action"><button class="small update-btn" data-idx="${idx}">Update</button></td>
       </tr>`;
     });
 
