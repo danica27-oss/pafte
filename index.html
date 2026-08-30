@@ -151,6 +151,38 @@
 
   .actions-row { margin-top: 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
+  .dup-box {
+    margin-top: 4px;
+    border: 1.5px solid #C9962A;
+    background: #FBF1DC;
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+  .dup-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #8A5A00;
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .dup-sub { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
+  .dup-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .dup-list li {
+    font-size: 13px;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(138,90,0,0.2);
+    border-radius: 4px;
+    padding: 8px 10px;
+  }
+  .dup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .dup-actions button.small { background: #8A5A00; }
+  .dup-actions button.small:hover { background: #6E4700; }
+
+  /* wider layout while viewing the responses table */
+  .page.responses-active { max-width: 1080px; }
+
   button.primary {
     background: var(--maroon);
     color: var(--cream);
@@ -288,7 +320,7 @@
 </head>
 <body>
 
-<div class="page">
+<div class="page" id="pageWrap">
   <header class="masthead">
     <div class="seal">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -362,6 +394,16 @@
         <input type="date" id="dateRegistered" name="dateRegistered">
       </div>
 
+      <div id="duplicateWarning" class="dup-box" style="display:none;" role="alert">
+        <p class="dup-title">Possible existing registration</p>
+        <p class="dup-sub">A similar name or matching email is already on record. Review before continuing.</p>
+        <ul class="dup-list" id="dupList"></ul>
+        <div class="dup-actions">
+          <button type="button" class="small" id="recordAnywayBtn">Record Anyway</button>
+          <button type="button" class="small secondary" id="cancelDupBtn">Go Back &amp; Edit</button>
+        </div>
+      </div>
+
       <div class="actions-row">
         <button type="submit" class="primary" id="submitBtn">Record Entry</button>
         <p class="status" id="status"></p>
@@ -401,6 +443,7 @@
   let responses = []; // holds the currently loaded response objects
 
   /* ---------- Tabs ---------- */
+  const pageWrap = document.getElementById('pageWrap');
   const tabRecord = document.getElementById('tabRecord');
   const tabResponses = document.getElementById('tabResponses');
   const recordView = document.getElementById('recordView');
@@ -415,6 +458,7 @@
     tabResponses.classList.toggle('active', !isRecord);
     recordView.classList.toggle('hidden', !isRecord);
     responsesView.classList.toggle('hidden', isRecord);
+    pageWrap.classList.toggle('responses-active', !isRecord);
   }
 
   /* ---------- Region "Other" toggle ---------- */
@@ -446,6 +490,23 @@
   const form = document.getElementById('regForm');
   const statusEl = document.getElementById('status');
   const submitBtn = document.getElementById('submitBtn');
+  const duplicateWarning = document.getElementById('duplicateWarning');
+  const dupList = document.getElementById('dupList');
+  const recordAnywayBtn = document.getElementById('recordAnywayBtn');
+  const cancelDupBtn = document.getElementById('cancelDupBtn');
+
+  let pendingPayload = null;
+
+  function hideDuplicateWarning() {
+    duplicateWarning.style.display = 'none';
+    pendingPayload = null;
+  }
+
+  // Hide a stale warning if the person edits any identifying field after seeing it
+  [form.fullName, form.email, regionSelect, regionOtherInput].forEach(el => {
+    el.addEventListener('input', hideDuplicateWarning);
+    el.addEventListener('change', hideDuplicateWarning);
+  });
 
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -460,18 +521,52 @@
     const isRegistered = statusSelect.value === 'Registered';
     const dateRegistered = isRegistered ? dateRegisteredInput.value : '';
 
-    submitBtn.disabled = true;
-    statusEl.textContent = 'Recording…';
-    statusEl.className = 'status';
-
-    const data = new URLSearchParams({
-      action: 'create',
+    const payload = {
       name: form.fullName.value.trim(),
       email: form.email.value.trim(),
       region: region,
       status: statusSelect.value,
       dateRegistered: dateRegistered
-    });
+    };
+
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Checking for existing records…';
+    statusEl.className = 'status';
+
+    const matches = await findPossibleDuplicates(payload.name, payload.email);
+
+    if (matches && matches.length > 0) {
+      pendingPayload = payload;
+      statusEl.textContent = '';
+      dupList.innerHTML = matches.map(m => `<li><strong>${escapeHtml(m.name)}</strong> — ${escapeHtml(m.email)} · ${escapeHtml(m.region || '')} · ${escapeHtml(m.status || 'Not Registered')}</li>`).join('');
+      duplicateWarning.style.display = 'block';
+      submitBtn.disabled = false;
+      return;
+    }
+
+    hideDuplicateWarning();
+    await submitRecord(payload);
+  });
+
+  recordAnywayBtn.addEventListener('click', async () => {
+    if (!pendingPayload) return;
+    const payload = pendingPayload;
+    hideDuplicateWarning();
+    await submitRecord(payload);
+  });
+
+  cancelDupBtn.addEventListener('click', () => {
+    hideDuplicateWarning();
+    statusEl.textContent = '';
+    form.fullName.focus();
+  });
+
+  async function submitRecord(payload) {
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Recording…';
+    statusEl.className = 'status';
+
+    const data = new URLSearchParams({ action: 'create', ...payload });
 
     try {
       await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: data });
@@ -487,7 +582,60 @@
     } finally {
       submitBtn.disabled = false;
     }
-  });
+  }
+
+  /* ---------- Duplicate detection ---------- */
+  // Looks for an exact email match or a similarly-spelled name among existing responses.
+  async function findPossibleDuplicates(name, email) {
+    try {
+      const res = await fetch(SCRIPT_URL, { method: 'GET' });
+      if (!res.ok) return null;
+      const existing = await res.json();
+
+      const normEmail = email.trim().toLowerCase();
+      const normName = normalizeName(name);
+
+      return existing.filter(r => {
+        const rEmail = String(r.email || '').trim().toLowerCase();
+        const rName = normalizeName(r.name || '');
+        if (!rEmail && !rName) return false;
+        const emailMatch = rEmail && rEmail === normEmail;
+        const nameMatch = rName && normName && nameSimilarity(rName, normName) >= 0.82;
+        return emailMatch || nameMatch;
+      });
+    } catch (err) {
+      // If the check itself fails (offline, CORS, etc.), don't block submission —
+      // just skip the duplicate check silently.
+      return null;
+    }
+  }
+
+  function normalizeName(str) {
+    return String(str).toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  function nameSimilarity(a, b) {
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    if (a.includes(b) || b.includes(a)) return 0.9;
+    const dist = levenshtein(a, b);
+    const maxLen = Math.max(a.length, b.length);
+    return maxLen === 0 ? 1 : 1 - dist / maxLen;
+  }
+
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      }
+    }
+    return dp[m][n];
+  }
 
   /* ---------- Load responses ---------- */
   const refreshBtn = document.getElementById('refreshBtn');
@@ -568,7 +716,13 @@
 
     row.querySelector('.cell-name').innerHTML = `<input type="text" class="edit-name" value="${escapeAttr(r.name)}">`;
     row.querySelector('.cell-email').innerHTML = `<input type="email" class="edit-email" value="${escapeAttr(r.email)}">`;
-    row.querySelector('.cell-region').innerHTML = `<input type="text" class="edit-region" value="${escapeAttr(r.region)}">`;
+    row.querySelector('.cell-region').innerHTML = buildRegionEditHTML(r.region);
+    const regionEditSelect = row.querySelector('.edit-region-select');
+    const regionEditOther = row.querySelector('.edit-region-other');
+    regionEditSelect.addEventListener('change', () => {
+      const isOther = regionEditSelect.value === '__other__';
+      regionEditOther.style.display = isOther ? 'block' : 'none';
+    });
     row.querySelector('.cell-status').innerHTML = `
       <select class="edit-status">
         <option value="Registered" ${isRegistered ? 'selected' : ''}>Registered</option>
@@ -603,7 +757,10 @@
 
     const newName = row.querySelector('.edit-name').value.trim();
     const newEmail = row.querySelector('.edit-email').value.trim();
-    const newRegion = row.querySelector('.edit-region').value.trim();
+    const newRegionSelectVal = row.querySelector('.edit-region-select').value;
+    const newRegion = newRegionSelectVal === '__other__'
+      ? row.querySelector('.edit-region-other').value.trim()
+      : newRegionSelectVal;
     const newStatus = row.querySelector('.edit-status').value;
     const newDateRegistered = newStatus === 'Registered' ? row.querySelector('.edit-date-registered').value : '';
 
@@ -716,6 +873,30 @@
     if (!val) return '';
     // Normalize whatever the Sheet gives back into YYYY-MM-DD for the <input type="date">
     return String(val).slice(0, 10);
+  }
+
+  /* ---------- Region dropdown for inline editing ---------- */
+  // Reuses the same option list as the create-form dropdown, so the two never drift apart.
+  function getStandardRegionOptions() {
+    return Array.from(regionSelect.options)
+      .filter(o => o.value && o.value !== '__other__')
+      .map(o => o.value);
+  }
+
+  function buildRegionEditHTML(currentRegion) {
+    const standardRegions = getStandardRegionOptions();
+    const isStandard = standardRegions.includes(currentRegion);
+
+    let optionsHtml = standardRegions
+      .map(v => `<option value="${escapeAttr(v)}" ${v === currentRegion ? 'selected' : ''}>${escapeHtml(v)}</option>`)
+      .join('');
+    optionsHtml += `<option value="__other__" ${!isStandard && currentRegion ? 'selected' : ''}>Other (please specify)</option>`;
+
+    const otherDisplay = (!isStandard && currentRegion) ? 'block' : 'none';
+    const otherValue = (!isStandard && currentRegion) ? currentRegion : '';
+
+    return `<select class="edit-region-select">${optionsHtml}</select>
+      <input type="text" class="edit-region-other" style="display:${otherDisplay}; margin-top:6px;" value="${escapeAttr(otherValue)}" placeholder="Enter region">`;
   }
 
   function escapeHtml(str) {
