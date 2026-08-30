@@ -1,97 +1,166 @@
 /**
  * PAFTE Verification — Google Apps Script backend
+ * ─────────────────────────────────────────────────
+ * This script turns a Google Sheet into the storage/API layer for the
+ * PAFTE Verification portal (index.html). It exposes:
+ *   - doGet()  → returns all records as JSON
+ *   - doPost() → creates a new record (action=create) or updates an
+ *                existing one (action=update)
  *
- * Handles three things from the web page:
- *  - doPost (action=create): appends a new response row
- *  - doPost (action=update): updates an existing row, matched by ID
- *  - doGet: returns all responses as JSON, used by "View Responses" and
- *           the duplicate-name/email check on the record form
- *
- * Sheet columns (created by setup()):
- *  A: ID | B: Timestamp | C: Name | D: Email | E: Region | F: Status
- *  G: License No. | H: Date of Registration | I: Last Updated
- *
- * License No. and Date of Registration are only ever populated when
- * Status is "Registered" — they're cleared whenever a row is set back
- * to "Not Registered".
- *
- * Setup instructions are in README.md.
+ * SETUP
+ * 1. Create (or open) a Google Sheet that will hold responses.
+ * 2. Extensions ▸ Apps Script, delete any boilerplate, paste this file in.
+ * 3. Deploy ▸ New deployment ▸ type: "Web app"
+ *      - Execute as: Me
+ *      - Who has access: Anyone
+ * 4. Copy the resulting /exec URL and paste it into SCRIPT_URL in index.html.
+ * 5. The first request will auto-create a "Responses" tab with headers
+ *    if it doesn't already exist — no manual header setup required.
  */
 
+const SHEET_NAME = 'Responses'; // change if you want a different tab name
+
+const HEADERS = [
+  'ID', 'Name', 'Email', 'Region', 'PAFTE OR No.', 'Status',
+  'License No.', 'Date Registered', 'Timestamp', 'Last Updated'
+];
+
+// Column positions (1-indexed) matching HEADERS above
+const COL = {
+  ID: 1,
+  NAME: 2,
+  EMAIL: 3,
+  REGION: 4,
+  PAFTE_OR_NO: 5,
+  STATUS: 6,
+  LICENSE_NO: 7,
+  DATE_REGISTERED: 8,
+  TIMESTAMP: 9,
+  LAST_UPDATED: 10
+};
+
+function getSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/** GET → list all records as JSON */
 function doGet(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = sheet.getDataRange().getValues();
-  var rows = [];
-
-  for (var i = 1; i < data.length; i++) {
-    if (!data[i][0]) continue; // skip blank rows
-    rows.push({
-      id: data[i][0],
-      timestamp: data[i][1],
-      name: data[i][2],
-      email: data[i][3],
-      region: data[i][4],
-      status: data[i][5],
-      licenseNo: data[i][6],
-      dateRegistered: data[i][7],
-      lastUpdated: data[i][8]
-    });
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return jsonResponse_([]);
   }
 
-  return ContentService
-    .createTextOutput(JSON.stringify(rows))
-    .setMimeType(ContentService.MimeType.JSON);
+  const data = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+
+  const records = data
+    .filter(r => r.join('').trim() !== '')
+    .map(r => ({
+      id: r[COL.ID - 1],
+      name: r[COL.NAME - 1],
+      email: r[COL.EMAIL - 1],
+      region: r[COL.REGION - 1],
+      pafteOrNo: r[COL.PAFTE_OR_NO - 1],
+      status: r[COL.STATUS - 1] || 'Not Registered',
+      licenseNo: r[COL.LICENSE_NO - 1],
+      dateRegistered: formatValue_(r[COL.DATE_REGISTERED - 1]),
+      timestamp: formatValue_(r[COL.TIMESTAMP - 1]),
+      lastUpdated: formatValue_(r[COL.LAST_UPDATED - 1])
+    }));
+
+  return jsonResponse_(records);
 }
 
+/** POST → create or update a record, depending on action */
 function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var action = e.parameter.action || 'create';
+  const sheet = getSheet_();
+  const params = (e && e.parameter) || {};
+  const action = params.action;
 
-  if (action === 'update') {
-    var id = e.parameter.id;
-    var data = sheet.getDataRange().getValues();
-
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(id)) {
-        var row = i + 1;
-        var newStatus = e.parameter.status || data[i][5];
-        var isRegistered = newStatus === 'Registered';
-        sheet.getRange(row, 3).setValue(e.parameter.name || data[i][2]);
-        sheet.getRange(row, 4).setValue(e.parameter.email || data[i][3]);
-        sheet.getRange(row, 5).setValue(e.parameter.region || data[i][4]);
-        sheet.getRange(row, 6).setValue(newStatus);
-        // License No. and Date of Registration only persist while Registered.
-        sheet.getRange(row, 7).setValue(isRegistered ? (e.parameter.licenseNo || '') : '');
-        sheet.getRange(row, 8).setValue(isRegistered ? (e.parameter.dateRegistered || '') : '');
-        sheet.getRange(row, 9).setValue(new Date());
-        break;
-      }
-    }
-  } else {
-    var id = Utilities.getUuid();
-    var status = e.parameter.status || 'Not Registered';
-    var isRegistered = status === 'Registered';
-    sheet.appendRow([
-      id,
-      new Date(),
-      e.parameter.name || '',
-      e.parameter.email || '',
-      e.parameter.region || '',
-      status,
-      isRegistered ? (e.parameter.licenseNo || '') : '',
-      isRegistered ? (e.parameter.dateRegistered || '') : '',
-      ''
-    ]);
+  if (action === 'create') {
+    return handleCreate_(sheet, params);
   }
-
-  return ContentService
-    .createTextOutput(JSON.stringify({ result: 'success' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  if (action === 'update') {
+    return handleUpdate_(sheet, params);
+  }
+  return jsonResponse_({ result: 'error', message: 'Unknown action: ' + action });
 }
 
-// Run this once manually (select "setup" in the function dropdown, click Run)
-// to create the header row.
-function setup() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.appendRow(['ID', 'Timestamp', 'Name (Surname, Given Name, Middle Name)', 'Email', 'Place of Registration', 'Status', 'License No.', 'Date of Registration', 'Last Updated']);
+function handleCreate_(sheet, params) {
+  const id = Utilities.getUuid();
+  const now = new Date();
+
+  sheet.appendRow([
+    id,
+    params.name || '',
+    params.email || '',
+    params.region || '',
+    params.pafteOrNo || '',
+    params.status || 'Not Registered',
+    params.licenseNo || '',
+    params.dateRegistered || '',
+    now,
+    '' // Last Updated stays blank until the record is edited
+  ]);
+
+  return jsonResponse_({ result: 'success', id: id });
+}
+
+function handleUpdate_(sheet, params) {
+  const rowIndex = findRowById_(sheet, params.id);
+  if (rowIndex === -1) {
+    return jsonResponse_({ result: 'error', message: 'Record not found for id ' + params.id });
+  }
+
+  const originalTimestamp = sheet.getRange(rowIndex, COL.TIMESTAMP).getValue();
+  const now = new Date();
+
+  // Write columns Name → Last Updated in one call (keeps ID and original Timestamp untouched)
+  sheet.getRange(rowIndex, COL.NAME, 1, HEADERS.length - 1).setValues([[
+    params.name || '',
+    params.email || '',
+    params.region || '',
+    params.pafteOrNo || '',
+    params.status || 'Not Registered',
+    params.licenseNo || '',
+    params.dateRegistered || '',
+    originalTimestamp,
+    now
+  ]]);
+
+  return jsonResponse_({ result: 'success' });
+}
+
+function findRowById_(sheet, id) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  const ids = sheet.getRange(2, COL.ID, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) return i + 2; // +2: header row + 1-indexed
+  }
+  return -1;
+}
+
+function formatValue_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    // Treat an all-zero "empty" date (from a blank cell coerced to Date) as blank
+    if (value.getTime() === 0) return '';
+    return value.toISOString();
+  }
+  return value;
+}
+
+function jsonResponse_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
