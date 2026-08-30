@@ -579,7 +579,7 @@
     el.value = el.value.toUpperCase();
     try { el.setSelectionRange(start, end); } catch (err) { /* not all input types support this */ }
   }
-  [document.getElementById('fullName'), document.getElementById('regionOther'), licenseNoInput].forEach(el => {
+  [document.getElementById('fullName'), document.getElementById('regionOther'), document.getElementById('pafteOrNo'), licenseNoInput].forEach(el => {
     el.addEventListener('input', forceUppercase);
   });
 
@@ -863,6 +863,7 @@
     });
     licenseEditInput.addEventListener('input', forceUppercase);
     row.querySelector('.edit-name').addEventListener('input', forceUppercase);
+    row.querySelector('.edit-pafteOrNo').addEventListener('input', forceUppercase);
     regionEditOther.addEventListener('input', forceUppercase);
 
     const actionCell = row.querySelector('td:last-child');
