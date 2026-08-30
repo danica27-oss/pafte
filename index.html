@@ -409,7 +409,7 @@
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
 
-    if (SCRIPT_URL.includes('PASTE_YOUR')) {
+    if (SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbzBfR-xQ2ZsVLXrPTCMUsDH86aMtpgky9fPyDtHbnsFU3xp4nrZ8lAucVWxX2tR0ICO/exechttps://script.google.com/macros/s/AKfycbzBfR-xQ2ZsVLXrPTCMUsDH86aMtpgky9fPyDtHbnsFU3xp4nrZ8lAucVWxX2tR0ICO/exec')) {
       statusEl.textContent = 'Not connected yet — add your Apps Script URL in index.html (see README.md).';
       statusEl.className = 'status err';
       return;
@@ -453,7 +453,7 @@
   refreshBtn.addEventListener('click', loadResponses);
 
   async function loadResponses() {
-    if (SCRIPT_URL.includes('PASTE_YOUR')) {
+    if (SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbzBfR-xQ2ZsVLXrPTCMUsDH86aMtpgky9fPyDtHbnsFU3xp4nrZ8lAucVWxX2tR0ICO/exechttps://script.google.com/macros/s/AKfycbzBfR-xQ2ZsVLXrPTCMUsDH86aMtpgky9fPyDtHbnsFU3xp4nrZ8lAucVWxX2tR0ICO/exec')) {
       responsesStatus.textContent = 'Not connected yet — add your Apps Script URL in index.html (see README.md).';
       responsesStatus.className = 'status err';
       return;
