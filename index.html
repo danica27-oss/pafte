@@ -151,6 +151,40 @@
 
   .actions-row { margin-top: 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
+  /* ── Toggle switch ───────────────────────────── */
+  .toggle-row { display: flex; align-items: center; gap: 12px; }
+  .toggle-switch {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    border: none;
+    background: #C9C0AF;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+  }
+  .toggle-switch:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+  .toggle-switch .toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.2s ease;
+  }
+  .toggle-switch.on { background: var(--ok); }
+  .toggle-switch.on .toggle-thumb { transform: translateX(20px); }
+  .toggle-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
   .dup-box {
     margin-top: 4px;
     border: 1.5px solid #C9962A;
@@ -382,11 +416,19 @@
       </div>
 
       <div class="field">
-        <label for="regStatus">Registration Status</label>
-        <select id="regStatus" name="status" required>
-          <option value="Registered">Registered</option>
-          <option value="Not Registered">Not Registered</option>
-        </select>
+        <label>Registration Status</label>
+        <div class="toggle-row">
+          <button type="button" class="toggle-switch" id="regStatusToggle" role="switch" aria-checked="false" aria-label="Registration status">
+            <span class="toggle-thumb"></span>
+          </button>
+          <span class="toggle-text" id="regStatusText">Not Registered</span>
+        </div>
+        <input type="hidden" id="regStatus" name="status" value="Not Registered">
+      </div>
+
+      <div class="field" id="licenseNoField" style="display:none;">
+        <label for="licenseNo">License No.</label>
+        <input type="text" id="licenseNo" name="licenseNo" placeholder="e.g. 0123456">
       </div>
 
       <div class="field" id="dateRegisteredField" style="display:none;">
@@ -471,20 +513,52 @@
     regionOtherInput.required = isOther;
   });
 
-  /* ---------- Registration Status → Date of Registration toggle ---------- */
-  const statusSelect = document.getElementById('regStatus');
+  /* ---------- Registration Status toggle → License No. + Date of Registration ---------- */
+  const statusSelect = document.getElementById('regStatus'); // hidden input holding the current value
+  const regStatusToggle = document.getElementById('regStatusToggle');
+  const regStatusText = document.getElementById('regStatusText');
+  const licenseNoField = document.getElementById('licenseNoField');
+  const licenseNoInput = document.getElementById('licenseNo');
   const dateRegisteredField = document.getElementById('dateRegisteredField');
   const dateRegisteredInput = document.getElementById('dateRegistered');
-  statusSelect.addEventListener('change', () => {
-    const isRegistered = statusSelect.value === 'Registered';
+
+  function setRegistrationStatus(value) {
+    statusSelect.value = value;
+    const isRegistered = value === 'Registered';
+    regStatusText.textContent = value;
+    regStatusToggle.classList.toggle('on', isRegistered);
+    regStatusToggle.setAttribute('aria-checked', String(isRegistered));
+
+    // Only when switched to Registered do the License No. and Date of Registration boxes appear.
+    licenseNoField.style.display = isRegistered ? 'block' : 'none';
+    licenseNoInput.required = isRegistered;
     dateRegisteredField.style.display = isRegistered ? 'block' : 'none';
     dateRegisteredInput.required = isRegistered;
     if (isRegistered && !dateRegisteredInput.value) {
       dateRegisteredInput.value = new Date().toISOString().slice(0, 10);
     }
+    if (!isRegistered) {
+      licenseNoInput.value = '';
+    }
+  }
+
+  regStatusToggle.addEventListener('click', () => {
+    setRegistrationStatus(statusSelect.value === 'Registered' ? 'Not Registered' : 'Registered');
   });
-  // Status defaults to "Registered" on page load, so show the date field immediately
-  statusSelect.dispatchEvent(new Event('change'));
+
+  // Starts as "Not Registered" — License No. and Date of Registration stay hidden until toggled on.
+  setRegistrationStatus('Not Registered');
+
+  /* ---------- Force ALL CAPS on free-text fields, live as the person types ---------- */
+  function forceUppercase(e) {
+    const el = e.target;
+    const start = el.selectionStart, end = el.selectionEnd;
+    el.value = el.value.toUpperCase();
+    try { el.setSelectionRange(start, end); } catch (err) { /* not all input types support this */ }
+  }
+  [document.getElementById('fullName'), document.getElementById('regionOther'), licenseNoInput].forEach(el => {
+    el.addEventListener('input', forceUppercase);
+  });
 
   /* ---------- Record submit ---------- */
   const form = document.getElementById('regForm');
@@ -508,6 +582,16 @@
     el.addEventListener('change', hideDuplicateWarning);
   });
 
+  // Pressing Enter in any text/email/date field submits the form —
+  // no need to click "Record Entry" on the page. Enter on the toggle
+  // switch itself just flips it, and doesn't submit.
+  form.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      form.requestSubmit(submitBtn);
+    }
+  });
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
 
@@ -517,15 +601,17 @@
       return;
     }
 
-    const region = regionSelect.value === '__other__' ? regionOtherInput.value.trim() : regionSelect.value;
+    const region = regionSelect.value === '__other__' ? regionOtherInput.value.trim().toUpperCase() : regionSelect.value;
     const isRegistered = statusSelect.value === 'Registered';
     const dateRegistered = isRegistered ? dateRegisteredInput.value : '';
+    const licenseNo = isRegistered ? licenseNoInput.value.trim().toUpperCase() : '';
 
     const payload = {
-      name: form.fullName.value.trim(),
+      name: form.fullName.value.trim().toUpperCase(),
       email: form.email.value.trim(),
       region: region,
       status: statusSelect.value,
+      licenseNo: licenseNo,
       dateRegistered: dateRegistered
     };
 
@@ -573,8 +659,7 @@
       statusEl.textContent = 'Entry recorded. Thank you.';
       statusEl.className = 'status ok';
       form.reset();
-      statusSelect.value = 'Registered';
-      statusSelect.dispatchEvent(new Event('change'));
+      setRegistrationStatus('Not Registered');
       otherRegionField.style.display = 'none';
     } catch (err) {
       statusEl.textContent = 'Could not reach the ledger. Check your connection and try again.';
@@ -684,7 +769,7 @@
     }
 
     let html = '<table><thead><tr>' +
-      '<th>Name</th><th>Email</th><th>Region</th><th>Status</th><th>Date Registered</th><th>Submitted</th><th>Last Updated</th><th></th>' +
+      '<th>Name</th><th>Email</th><th>Region</th><th>Status</th><th>License No.</th><th>Date Registered</th><th>Submitted</th><th>Last Updated</th><th></th>' +
       '</tr></thead><tbody>';
 
     responses.forEach((r, idx) => {
@@ -694,6 +779,7 @@
         <td class="cell-email">${escapeHtml(r.email)}</td>
         <td class="cell-region">${escapeHtml(r.region)}</td>
         <td class="cell-status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
+        <td class="cell-license">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
         <td class="cell-date-registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
         <td>${formatDate(r.timestamp)}</td>
         <td>${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
@@ -728,18 +814,30 @@
         <option value="Registered" ${isRegistered ? 'selected' : ''}>Registered</option>
         <option value="Not Registered" ${!isRegistered ? 'selected' : ''}>Not Registered</option>
       </select>`;
+    row.querySelector('.cell-license').innerHTML =
+      `<input type="text" class="edit-license" value="${isRegistered ? escapeAttr(r.licenseNo || '') : ''}" placeholder="License No." ${isRegistered ? '' : 'style="display:none;"'}>`;
     row.querySelector('.cell-date-registered').innerHTML =
       `<input type="date" class="edit-date-registered" value="${r.dateRegistered ? toDateInputValue(r.dateRegistered) : ''}" ${isRegistered ? '' : 'style="display:none;"'}>`;
 
     const statusEditSelect = row.querySelector('.edit-status');
+    const licenseEditInput = row.querySelector('.edit-license');
     const dateEditInput = row.querySelector('.edit-date-registered');
+
+    // Only when switched to Registered do the License No. and Date of Registration boxes appear.
     statusEditSelect.addEventListener('change', () => {
       const nowRegistered = statusEditSelect.value === 'Registered';
+      licenseEditInput.style.display = nowRegistered ? 'block' : 'none';
       dateEditInput.style.display = nowRegistered ? 'block' : 'none';
       if (nowRegistered && !dateEditInput.value) {
         dateEditInput.value = new Date().toISOString().slice(0, 10);
       }
+      if (!nowRegistered) {
+        licenseEditInput.value = '';
+      }
     });
+    licenseEditInput.addEventListener('input', forceUppercase);
+    row.querySelector('.edit-name').addEventListener('input', forceUppercase);
+    regionEditOther.addEventListener('input', forceUppercase);
 
     const actionCell = row.querySelector('td:last-child');
     actionCell.innerHTML = `
@@ -755,14 +853,16 @@
     const row = document.querySelector(`tr[data-idx="${idx}"]`);
     const r = responses[idx];
 
-    const newName = row.querySelector('.edit-name').value.trim();
+    const newName = row.querySelector('.edit-name').value.trim().toUpperCase();
     const newEmail = row.querySelector('.edit-email').value.trim();
     const newRegionSelectVal = row.querySelector('.edit-region-select').value;
     const newRegion = newRegionSelectVal === '__other__'
-      ? row.querySelector('.edit-region-other').value.trim()
+      ? row.querySelector('.edit-region-other').value.trim().toUpperCase()
       : newRegionSelectVal;
     const newStatus = row.querySelector('.edit-status').value;
-    const newDateRegistered = newStatus === 'Registered' ? row.querySelector('.edit-date-registered').value : '';
+    const isRegistered = newStatus === 'Registered';
+    const newLicenseNo = isRegistered ? row.querySelector('.edit-license').value.trim().toUpperCase() : '';
+    const newDateRegistered = isRegistered ? row.querySelector('.edit-date-registered').value : '';
 
     const data = new URLSearchParams({
       action: 'update',
@@ -771,6 +871,7 @@
       email: newEmail,
       region: newRegion,
       status: newStatus,
+      licenseNo: newLicenseNo,
       dateRegistered: newDateRegistered
     });
 
@@ -780,6 +881,7 @@
       r.email = newEmail;
       r.region = newRegion;
       r.status = newStatus;
+      r.licenseNo = newLicenseNo;
       r.dateRegistered = newDateRegistered;
       r.lastUpdated = new Date().toISOString();
       responsesStatus.textContent = 'Record updated.';
@@ -793,11 +895,27 @@
   }
 
   /* ---------- Export ---------- */
+  function buildExportRows() {
+    const header = ['Name', 'Email', 'Region', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
+    const rows = responses.map(r => {
+      const isRegistered = r.status === 'Registered';
+      return [
+        r.name,
+        r.email,
+        r.region,
+        r.status || '',
+        isRegistered && r.licenseNo ? r.licenseNo : '',
+        isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '',
+        formatDate(r.timestamp),
+        r.lastUpdated ? formatDate(r.lastUpdated) : ''
+      ];
+    });
+    return { header, rows };
+  }
+
   exportCsvBtn.addEventListener('click', () => {
-    const rows = [['Name', 'Email', 'Region', 'Status', 'Date Registered', 'Submitted', 'Last Updated']].concat(
-      responses.map(r => [r.name, r.email, r.region, r.status || '', r.status === 'Registered' && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '', formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
-    );
-    const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+    const { header, rows } = buildExportRows();
+    const csv = [header].concat(rows).map(row => row.map(csvEscape).join(',')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'pafte-verification-responses.csv');
   });
 
@@ -807,10 +925,8 @@
       responsesStatus.className = 'status err';
       return;
     }
-    const rows = [['Name', 'Email', 'Region', 'Status', 'Date Registered', 'Submitted', 'Last Updated']].concat(
-      responses.map(r => [r.name, r.email, r.region, r.status || '', r.status === 'Registered' && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '', formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
-    );
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const { header, rows } = buildExportRows();
+    const ws = XLSX.utils.aoa_to_sheet([header].concat(rows));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Responses');
     XLSX.writeFile(wb, 'pafte-verification-responses.xlsx');
@@ -822,14 +938,15 @@
       responsesStatus.className = 'status err';
       return;
     }
+    const { header, rows } = buildExportRows();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text('PAFTE Verification — Responses', 14, 16);
     doc.autoTable({
       startY: 22,
-      head: [['Name', 'Email', 'Region', 'Status', 'Date Registered', 'Submitted', 'Last Updated']],
-      body: responses.map(r => [r.name, r.email, r.region, r.status || '', r.status === 'Registered' && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '', formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : '']),
+      head: [header],
+      body: rows,
       styles: { fontSize: 8 },
       headStyles: { fillColor: [110, 20, 35] }
     });
@@ -912,5 +1029,3 @@
 
 </body>
 </html>
-
-
