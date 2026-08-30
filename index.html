@@ -248,6 +248,19 @@
   }
   button.small.secondary:hover { border-color: var(--maroon); }
 
+  .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .status-pill.registered { background: rgba(46, 94, 62, 0.12); color: var(--ok); }
+  .status-pill.not-registered { background: rgba(138, 42, 42, 0.1); color: var(--err); }
+
   .empty-state {
     text-align: center;
     padding: 40px 16px;
@@ -336,6 +349,19 @@
         <input type="text" id="regionOther" name="regionOther" placeholder="Enter region">
       </div>
 
+      <div class="field">
+        <label for="regStatus">Registration Status</label>
+        <select id="regStatus" name="status" required>
+          <option value="Registered">Registered</option>
+          <option value="Not Registered">Not Registered</option>
+        </select>
+      </div>
+
+      <div class="field" id="dateRegisteredField" style="display:none;">
+        <label for="dateRegistered">Date of Registration</label>
+        <input type="date" id="dateRegistered" name="dateRegistered">
+      </div>
+
       <div class="actions-row">
         <button type="submit" class="primary" id="submitBtn">Record Entry</button>
         <p class="status" id="status"></p>
@@ -401,6 +427,21 @@
     regionOtherInput.required = isOther;
   });
 
+  /* ---------- Registration Status → Date of Registration toggle ---------- */
+  const statusSelect = document.getElementById('regStatus');
+  const dateRegisteredField = document.getElementById('dateRegisteredField');
+  const dateRegisteredInput = document.getElementById('dateRegistered');
+  statusSelect.addEventListener('change', () => {
+    const isRegistered = statusSelect.value === 'Registered';
+    dateRegisteredField.style.display = isRegistered ? 'block' : 'none';
+    dateRegisteredInput.required = isRegistered;
+    if (isRegistered && !dateRegisteredInput.value) {
+      dateRegisteredInput.value = new Date().toISOString().slice(0, 10);
+    }
+  });
+  // Status defaults to "Registered" on page load, so show the date field immediately
+  statusSelect.dispatchEvent(new Event('change'));
+
   /* ---------- Record submit ---------- */
   const form = document.getElementById('regForm');
   const statusEl = document.getElementById('status');
@@ -416,6 +457,8 @@
     }
 
     const region = regionSelect.value === '__other__' ? regionOtherInput.value.trim() : regionSelect.value;
+    const isRegistered = statusSelect.value === 'Registered';
+    const dateRegistered = isRegistered ? dateRegisteredInput.value : '';
 
     submitBtn.disabled = true;
     statusEl.textContent = 'Recording…';
@@ -425,7 +468,9 @@
       action: 'create',
       name: form.fullName.value.trim(),
       email: form.email.value.trim(),
-      region: region
+      region: region,
+      status: statusSelect.value,
+      dateRegistered: dateRegistered
     });
 
     try {
@@ -433,6 +478,8 @@
       statusEl.textContent = 'Entry recorded. Thank you.';
       statusEl.className = 'status ok';
       form.reset();
+      statusSelect.value = 'Registered';
+      statusSelect.dispatchEvent(new Event('change'));
       otherRegionField.style.display = 'none';
     } catch (err) {
       statusEl.textContent = 'Could not reach the ledger. Check your connection and try again.';
@@ -489,14 +536,17 @@
     }
 
     let html = '<table><thead><tr>' +
-      '<th>Name</th><th>Email</th><th>Region</th><th>Registered</th><th>Last Updated</th><th></th>' +
+      '<th>Name</th><th>Email</th><th>Region</th><th>Status</th><th>Date Registered</th><th>Submitted</th><th>Last Updated</th><th></th>' +
       '</tr></thead><tbody>';
 
     responses.forEach((r, idx) => {
+      const isRegistered = (r.status || '').toLowerCase() === 'registered';
       html += `<tr data-idx="${idx}">
         <td class="cell-name">${escapeHtml(r.name)}</td>
         <td class="cell-email">${escapeHtml(r.email)}</td>
         <td class="cell-region">${escapeHtml(r.region)}</td>
+        <td class="cell-status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
+        <td class="cell-date-registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
         <td>${formatDate(r.timestamp)}</td>
         <td>${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
         <td><button class="small update-btn" data-idx="${idx}">Update</button></td>
@@ -514,10 +564,28 @@
   function enterEditMode(idx) {
     const row = document.querySelector(`tr[data-idx="${idx}"]`);
     const r = responses[idx];
+    const isRegistered = r.status === 'Registered';
 
     row.querySelector('.cell-name').innerHTML = `<input type="text" class="edit-name" value="${escapeAttr(r.name)}">`;
     row.querySelector('.cell-email').innerHTML = `<input type="email" class="edit-email" value="${escapeAttr(r.email)}">`;
     row.querySelector('.cell-region').innerHTML = `<input type="text" class="edit-region" value="${escapeAttr(r.region)}">`;
+    row.querySelector('.cell-status').innerHTML = `
+      <select class="edit-status">
+        <option value="Registered" ${isRegistered ? 'selected' : ''}>Registered</option>
+        <option value="Not Registered" ${!isRegistered ? 'selected' : ''}>Not Registered</option>
+      </select>`;
+    row.querySelector('.cell-date-registered').innerHTML =
+      `<input type="date" class="edit-date-registered" value="${r.dateRegistered ? toDateInputValue(r.dateRegistered) : ''}" ${isRegistered ? '' : 'style="display:none;"'}>`;
+
+    const statusEditSelect = row.querySelector('.edit-status');
+    const dateEditInput = row.querySelector('.edit-date-registered');
+    statusEditSelect.addEventListener('change', () => {
+      const nowRegistered = statusEditSelect.value === 'Registered';
+      dateEditInput.style.display = nowRegistered ? 'block' : 'none';
+      if (nowRegistered && !dateEditInput.value) {
+        dateEditInput.value = new Date().toISOString().slice(0, 10);
+      }
+    });
 
     const actionCell = row.querySelector('td:last-child');
     actionCell.innerHTML = `
@@ -536,13 +604,17 @@
     const newName = row.querySelector('.edit-name').value.trim();
     const newEmail = row.querySelector('.edit-email').value.trim();
     const newRegion = row.querySelector('.edit-region').value.trim();
+    const newStatus = row.querySelector('.edit-status').value;
+    const newDateRegistered = newStatus === 'Registered' ? row.querySelector('.edit-date-registered').value : '';
 
     const data = new URLSearchParams({
       action: 'update',
       id: r.id,
       name: newName,
       email: newEmail,
-      region: newRegion
+      region: newRegion,
+      status: newStatus,
+      dateRegistered: newDateRegistered
     });
 
     try {
@@ -550,6 +622,8 @@
       r.name = newName;
       r.email = newEmail;
       r.region = newRegion;
+      r.status = newStatus;
+      r.dateRegistered = newDateRegistered;
       r.lastUpdated = new Date().toISOString();
       responsesStatus.textContent = 'Record updated.';
       responsesStatus.className = 'status ok';
@@ -563,8 +637,8 @@
 
   /* ---------- Export ---------- */
   exportCsvBtn.addEventListener('click', () => {
-    const rows = [['Name', 'Email', 'Region', 'Registered', 'Last Updated']].concat(
-      responses.map(r => [r.name, r.email, r.region, formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
+    const rows = [['Name', 'Email', 'Region', 'Status', 'Date Registered', 'Submitted', 'Last Updated']].concat(
+      responses.map(r => [r.name, r.email, r.region, r.status || '', r.status === 'Registered' && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '', formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
     );
     const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'pafte-verification-responses.csv');
@@ -576,8 +650,8 @@
       responsesStatus.className = 'status err';
       return;
     }
-    const rows = [['Name', 'Email', 'Region', 'Registered', 'Last Updated']].concat(
-      responses.map(r => [r.name, r.email, r.region, formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
+    const rows = [['Name', 'Email', 'Region', 'Status', 'Date Registered', 'Submitted', 'Last Updated']].concat(
+      responses.map(r => [r.name, r.email, r.region, r.status || '', r.status === 'Registered' && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '', formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : ''])
     );
     const ws = XLSX.utils.aoa_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -597,8 +671,8 @@
     doc.text('PAFTE Verification — Responses', 14, 16);
     doc.autoTable({
       startY: 22,
-      head: [['Name', 'Email', 'Region', 'Registered', 'Last Updated']],
-      body: responses.map(r => [r.name, r.email, r.region, formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : '']),
+      head: [['Name', 'Email', 'Region', 'Status', 'Date Registered', 'Submitted', 'Last Updated']],
+      body: responses.map(r => [r.name, r.email, r.region, r.status || '', r.status === 'Registered' && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '', formatDate(r.timestamp), r.lastUpdated ? formatDate(r.lastUpdated) : '']),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [110, 20, 35] }
     });
@@ -629,6 +703,21 @@
     return d.toLocaleString();
   }
 
+  function formatDateOnly(val) {
+    if (!val) return '';
+    // val may be "YYYY-MM-DD" (from the <input type="date">) or an ISO timestamp from the Sheet
+    const datePart = String(val).slice(0, 10);
+    const d = new Date(datePart + 'T00:00:00');
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleDateString();
+  }
+
+  function toDateInputValue(val) {
+    if (!val) return '';
+    // Normalize whatever the Sheet gives back into YYYY-MM-DD for the <input type="date">
+    return String(val).slice(0, 10);
+  }
+
   function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, c => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -642,4 +731,5 @@
 
 </body>
 </html>
+
 
