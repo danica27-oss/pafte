@@ -800,6 +800,7 @@
         <td class="cell-name col-name">${escapeHtml(r.name)}</td>
         <td class="cell-email col-email">${escapeHtml(r.email)}</td>
         <td class="cell-region col-region">${escapeHtml(r.region)}</td>
+        <td class="cell-pafteOrNo col-pafteOrNo">${escapeHtml(r.pafteOrNo)}</td>
         <td class="cell-status col-status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
         <td class="cell-license col-license">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
         <td class="cell-date-registered col-date">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
@@ -831,6 +832,7 @@
       const isOther = regionEditSelect.value === '__other__';
       regionEditOther.style.display = isOther ? 'block' : 'none';
     });
+    row.querySelector('.cell-pafteOrNo').innerHTML = `<input type="email" class="edit-pafteOrNo" value="${escapeAttr(r.pafteOrNo)}">`;
     row.querySelector('.cell-status').innerHTML = `
       <select class="edit-status">
         <option value="Registered" ${isRegistered ? 'selected' : ''}>Registered</option>
@@ -881,6 +883,7 @@
     const newRegion = newRegionSelectVal === '__other__'
       ? row.querySelector('.edit-region-other').value.trim().toUpperCase()
       : newRegionSelectVal;
+    const newPafteOrNo = row.querySelector('.edit-pafteOrNo').value.trim();
     const newStatus = row.querySelector('.edit-status').value;
     const isRegistered = newStatus === 'Registered';
     const newLicenseNo = isRegistered ? row.querySelector('.edit-license').value.trim().toUpperCase() : '';
@@ -892,6 +895,7 @@
       name: newName,
       email: newEmail,
       region: newRegion,
+      pafteOrNo: newPafteOrNo,
       status: newStatus,
       licenseNo: newLicenseNo,
       dateRegistered: newDateRegistered
@@ -902,6 +906,7 @@
       r.name = newName;
       r.email = newEmail;
       r.region = newRegion;
+      r.pafteOrNo: newPafteOrNo,
       r.status = newStatus;
       r.licenseNo = newLicenseNo;
       r.dateRegistered = newDateRegistered;
@@ -925,6 +930,7 @@
         r.name,
         r.email,
         r.region,
+        r.pafteOrNo,
         r.status || '',
         isRegistered && r.licenseNo ? r.licenseNo : '',
         isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '',
