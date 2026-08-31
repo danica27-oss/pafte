@@ -840,7 +840,7 @@
     }
 
     let html = '<table><thead><tr>' +
-      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-region">Region</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-paor">PAFTE OR No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
+      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-paor">PAFTE OR No.</th><th class="col-region">Region</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
       '</tr></thead><tbody>';
 
     responses.forEach((r, idx) => {
@@ -848,10 +848,10 @@
       html += `<tr data-idx="${idx}">
         <td class="cell-name col-name" data-label="Name">${escapeHtml(r.name)}</td>
         <td class="cell-email col-email" data-label="Email">${escapeHtml(r.email)}</td>
+        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
         <td class="cell-region col-region" data-label="Region">${escapeHtml(r.region)}</td>
         <td class="cell-status col-status" data-label="Status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
         <td class="cell-license col-license" data-label="License No.">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
-        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
         <td class="cell-date-registered col-date" data-label="Date Registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
         <td class="col-submitted" data-label="Submitted">${formatDate(r.timestamp)}</td>
         <td class="col-updated" data-label="Last Updated">${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
@@ -976,16 +976,16 @@
 
   /* ---------- Export ---------- */
   function buildExportRows() {
-    const header = ['Name', 'Email', 'Region', 'Status', 'License No.', 'PAFTE OR No.', 'Date Registered', 'Submitted', 'Last Updated'];
+    const header = ['Name', 'Email', 'PAFTE OR No.', 'Region', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
     const rows = responses.map(r => {
       const isRegistered = r.status === 'Registered';
       return [
         r.name,
         r.email,
+        r.paOrNo ? r.paOrNo : '',
         r.region,
         r.status || '',
         isRegistered && r.licenseNo ? r.licenseNo : '',
-        r.paOrNo ? r.paOrNo : '',
         isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '',
         formatDate(r.timestamp),
         r.lastUpdated ? formatDate(r.lastUpdated) : ''
