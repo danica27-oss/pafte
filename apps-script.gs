@@ -58,11 +58,11 @@ function doPost(e) {
         var row = i + 1;
         var newStatus = e.parameter.status || data[i][5];
         var isRegistered = newStatus === 'Registered';
-        sheet.getRange(row, 3).setValue(e.parameter.name || data[i][2]);
-        sheet.getRange(row, 4).setValue(e.parameter.email || data[i][3]);
-        sheet.getRange(row, 5).setValue(e.parameter.paOrNo || data[i][4]);
-        sheet.getRange(row, 6).setValue(e.parameter.region || data[i][5]);
-        sheet.getRange(row, 7).setValue(newStatus);
+        sheet.getRange(row, 2).setValue(e.parameter.name || data[i][2]);
+        sheet.getRange(row, 3).setValue(e.parameter.email || data[i][3]);
+        sheet.getRange(row, 4).setValue(e.parameter.paOrNo || data[i][4]);
+        sheet.getRange(row, 5).setValue(e.parameter.region || data[i][5]);
+        sheet.getRange(row, 6).setValue(newStatus);
         // License No., and Date of Registration only persist while Registered.
         sheet.getRange(row, 7).setValue(isRegistered ? (e.parameter.licenseNo || '') : '');
         sheet.getRange(row, 8).setValue(isRegistered ? (e.parameter.dateRegistered || '') : '');
