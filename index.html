@@ -292,15 +292,15 @@
 
   /* proportioned so Name → Update all fit without horizontal scroll on desktop */
   .col-name   { width: 13%; }
-  .col-email  { width: 16%; }
+  .col-email  { width: 13%; }
   .col-region { width: 13%; }
-  .col-pafteOrNo { width: 8%; }
   .col-status { width: 8%; }
   .col-license{ width: 8%; }
+  .col-paor   { width: 8%; }
   .col-date   { width: 8%; }
   .col-submitted { width: 9%; }
   .col-updated   { width: 9%; }
-  .col-action { width: 8%; }
+  .col-action { width: 11%; }
 
   td input[type="text"], td input[type="email"], td select {
     padding: 6px 7px;
@@ -366,6 +366,51 @@
     h1 { font-size: 28px; }
     .toolbar { flex-direction: column; align-items: stretch; }
   }
+
+  /* ── Responses table → stacked cards on phones ───────────────────────────── */
+  @media (max-width: 760px) {
+    .page.responses-active #responsesView.panel { padding: 16px 12px; }
+    .table-wrap { border: none; overflow-x: visible; }
+
+    table { table-layout: auto; }
+    thead { display: none; }
+    tbody, tr, td { display: block; width: 100% !important; }
+
+    tr {
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px 12px;
+      background: var(--panel);
+      box-shadow: 0 2px 8px rgba(36,28,21,0.05);
+    }
+
+    td {
+      padding: 9px 0;
+      border-bottom: 1px dashed var(--line);
+      word-break: break-word;
+    }
+    td:last-child { border-bottom: none; }
+
+    td::before {
+      content: attr(data-label);
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 4px;
+    }
+
+    td.col-action { text-align: left; }
+    td.col-action button.small { width: 100%; margin: 4px 0 0; }
+    td.col-action button.small:first-child { margin-top: 0; }
+
+    td input[type="text"], td input[type="email"], td input[type="date"], td select {
+      width: 100%;
+    }
+  }
 </style>
 </head>
 <body>
@@ -401,12 +446,6 @@
         <input type="email" id="email" name="email" placeholder="juan.delacruz@email.com" required>
       </div>
 
-    <div class="field">
-      <label for="pafteOrNo">PAFTE OR No.</label>
-      <input type="text" id="pafteOrNo" name="pafteOrNo" placeholder="e.g. 0123456">
-      <p class="hint">Enter the PAFTE official receipt / OR number, if available.</p>
-    </div>
-
       <div class="field">
         <label for="region">Place of Registration</label>
         <select id="region" name="region" required>
@@ -437,7 +476,6 @@
         <input type="text" id="regionOther" name="regionOther" placeholder="Enter region">
       </div>
 
-     
       <div class="field">
         <label>Registration Status</label>
         <div class="toggle-row">
@@ -452,6 +490,11 @@
       <div class="field" id="licenseNoField" style="display:none;">
         <label for="licenseNo">License No.</label>
         <input type="text" id="licenseNo" name="licenseNo" placeholder="e.g. 0123456">
+      </div>
+
+      <div class="field" id="paOrNoField" style="display:none;">
+        <label for="paOrNo">PAFTE OR No.</label>
+        <input type="text" id="paOrNo" name="paOrNo" placeholder="e.g. OR-000123">
       </div>
 
       <div class="field" id="dateRegisteredField" style="display:none;">
@@ -536,12 +579,14 @@
     regionOtherInput.required = isOther;
   });
 
-  /* ---------- Registration Status toggle → License No. + Date of Registration ---------- */
+  /* ---------- Registration Status toggle → License No. + PAFTE OR No. + Date of Registration ---------- */
   const statusSelect = document.getElementById('regStatus'); // hidden input holding the current value
   const regStatusToggle = document.getElementById('regStatusToggle');
   const regStatusText = document.getElementById('regStatusText');
   const licenseNoField = document.getElementById('licenseNoField');
   const licenseNoInput = document.getElementById('licenseNo');
+  const paOrNoField = document.getElementById('paOrNoField');
+  const paOrNoInput = document.getElementById('paOrNo');
   const dateRegisteredField = document.getElementById('dateRegisteredField');
   const dateRegisteredInput = document.getElementById('dateRegistered');
 
@@ -552,9 +597,11 @@
     regStatusToggle.classList.toggle('on', isRegistered);
     regStatusToggle.setAttribute('aria-checked', String(isRegistered));
 
-    // Only when switched to Registered do the License No. and Date of Registration boxes appear.
+    // Only when switched to Registered do the License No., PAFTE OR No., and Date of Registration boxes appear.
     licenseNoField.style.display = isRegistered ? 'block' : 'none';
     licenseNoInput.required = isRegistered;
+    paOrNoField.style.display = isRegistered ? 'block' : 'none';
+    paOrNoInput.required = isRegistered;
     dateRegisteredField.style.display = isRegistered ? 'block' : 'none';
     dateRegisteredInput.required = isRegistered;
     if (isRegistered && !dateRegisteredInput.value) {
@@ -562,6 +609,7 @@
     }
     if (!isRegistered) {
       licenseNoInput.value = '';
+      paOrNoInput.value = '';
     }
   }
 
@@ -569,7 +617,7 @@
     setRegistrationStatus(statusSelect.value === 'Registered' ? 'Not Registered' : 'Registered');
   });
 
-  // Starts as "Not Registered" — License No. and Date of Registration stay hidden until toggled on.
+  // Starts as "Not Registered" — License No., PAFTE OR No., and Date of Registration stay hidden until toggled on.
   setRegistrationStatus('Not Registered');
 
   /* ---------- Force ALL CAPS on free-text fields, live as the person types ---------- */
@@ -579,7 +627,7 @@
     el.value = el.value.toUpperCase();
     try { el.setSelectionRange(start, end); } catch (err) { /* not all input types support this */ }
   }
-  [document.getElementById('fullName'), document.getElementById('regionOther'), document.getElementById('pafteOrNo'), licenseNoInput].forEach(el => {
+  [document.getElementById('fullName'), document.getElementById('regionOther'), licenseNoInput, paOrNoInput].forEach(el => {
     el.addEventListener('input', forceUppercase);
   });
 
@@ -628,14 +676,15 @@
     const isRegistered = statusSelect.value === 'Registered';
     const dateRegistered = isRegistered ? dateRegisteredInput.value : '';
     const licenseNo = isRegistered ? licenseNoInput.value.trim().toUpperCase() : '';
+    const paOrNo = isRegistered ? paOrNoInput.value.trim().toUpperCase() : '';
 
     const payload = {
       name: form.fullName.value.trim().toUpperCase(),
       email: form.email.value.trim(),
-      pafteOrNo: form.pafteOrNo.value.trim().toUpperCase(),
       region: region,
       status: statusSelect.value,
       licenseNo: licenseNo,
+      paOrNo: paOrNo,
       dateRegistered: dateRegistered
     };
 
@@ -793,22 +842,22 @@
     }
 
     let html = '<table><thead><tr>' +
-      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-region">Region</th><th class="col-pafteOrNo">PAFTE OR No.</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
+      '<th class="col-name">Name</th><th class="col-email">Email</th><th class="col-region">Region</th><th class="col-status">Status</th><th class="col-license">License No.</th><th class="col-paor">PAFTE OR No.</th><th class="col-date">Date Registered</th><th class="col-submitted">Submitted</th><th class="col-updated">Last Updated</th><th class="col-action"></th>' +
       '</tr></thead><tbody>';
 
     responses.forEach((r, idx) => {
       const isRegistered = (r.status || '').toLowerCase() === 'registered';
       html += `<tr data-idx="${idx}">
-        <td class="cell-name col-name">${escapeHtml(r.name)}</td>
-        <td class="cell-email col-email">${escapeHtml(r.email)}</td>
-        <td class="cell-region col-region">${escapeHtml(r.region)}</td>
-        <td class="cell-pafteOrNo col-pafteOrNo">${escapeHtml(r.pafteOrNo)}</td>
-        <td class="cell-status col-status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
-        <td class="cell-license col-license">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
-        <td class="cell-date-registered col-date">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
-        <td class="col-submitted">${formatDate(r.timestamp)}</td>
-        <td class="col-updated">${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
-        <td class="col-action"><button class="small update-btn" data-idx="${idx}">Update</button></td>
+        <td class="cell-name col-name" data-label="Name">${escapeHtml(r.name)}</td>
+        <td class="cell-email col-email" data-label="Email">${escapeHtml(r.email)}</td>
+        <td class="cell-region col-region" data-label="Region">${escapeHtml(r.region)}</td>
+        <td class="cell-status col-status" data-label="Status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
+        <td class="cell-license col-license" data-label="License No.">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
+        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${isRegistered && r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
+        <td class="cell-date-registered col-date" data-label="Date Registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
+        <td class="col-submitted" data-label="Submitted">${formatDate(r.timestamp)}</td>
+        <td class="col-updated" data-label="Last Updated">${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
+        <td class="col-action" data-label="Actions"><button class="small update-btn" data-idx="${idx}">Update</button></td>
       </tr>`;
     });
 
@@ -834,7 +883,6 @@
       const isOther = regionEditSelect.value === '__other__';
       regionEditOther.style.display = isOther ? 'block' : 'none';
     });
-    row.querySelector('.cell-pafteOrNo').innerHTML = `<input type="text" class="edit-pafteOrNo" value="${escapeAttr(r.pafteOrNo)}">`;
     row.querySelector('.cell-status').innerHTML = `
       <select class="edit-status">
         <option value="Registered" ${isRegistered ? 'selected' : ''}>Registered</option>
@@ -842,28 +890,33 @@
       </select>`;
     row.querySelector('.cell-license').innerHTML =
       `<input type="text" class="edit-license" value="${isRegistered ? escapeAttr(r.licenseNo || '') : ''}" placeholder="License No." ${isRegistered ? '' : 'style="display:none;"'}>`;
+    row.querySelector('.cell-paor').innerHTML =
+      `<input type="text" class="edit-paor" value="${isRegistered ? escapeAttr(r.paOrNo || '') : ''}" placeholder="PAFTE OR No." ${isRegistered ? '' : 'style="display:none;"'}>`;
     row.querySelector('.cell-date-registered').innerHTML =
       `<input type="date" class="edit-date-registered" value="${r.dateRegistered ? toDateInputValue(r.dateRegistered) : ''}" ${isRegistered ? '' : 'style="display:none;"'}>`;
 
     const statusEditSelect = row.querySelector('.edit-status');
     const licenseEditInput = row.querySelector('.edit-license');
+    const paOrEditInput = row.querySelector('.edit-paor');
     const dateEditInput = row.querySelector('.edit-date-registered');
 
-    // Only when switched to Registered do the License No. and Date of Registration boxes appear.
+    // Only when switched to Registered do the License No., PAFTE OR No., and Date of Registration boxes appear.
     statusEditSelect.addEventListener('change', () => {
       const nowRegistered = statusEditSelect.value === 'Registered';
       licenseEditInput.style.display = nowRegistered ? 'block' : 'none';
+      paOrEditInput.style.display = nowRegistered ? 'block' : 'none';
       dateEditInput.style.display = nowRegistered ? 'block' : 'none';
       if (nowRegistered && !dateEditInput.value) {
         dateEditInput.value = new Date().toISOString().slice(0, 10);
       }
       if (!nowRegistered) {
         licenseEditInput.value = '';
+        paOrEditInput.value = '';
       }
     });
     licenseEditInput.addEventListener('input', forceUppercase);
+    paOrEditInput.addEventListener('input', forceUppercase);
     row.querySelector('.edit-name').addEventListener('input', forceUppercase);
-    row.querySelector('.edit-pafteOrNo').addEventListener('input', forceUppercase);
     regionEditOther.addEventListener('input', forceUppercase);
 
     const actionCell = row.querySelector('td:last-child');
@@ -886,10 +939,10 @@
     const newRegion = newRegionSelectVal === '__other__'
       ? row.querySelector('.edit-region-other').value.trim().toUpperCase()
       : newRegionSelectVal;
-    const newPafteOrNo = row.querySelector('.edit-pafteOrNo').value.trim().toUpperCase();
     const newStatus = row.querySelector('.edit-status').value;
     const isRegistered = newStatus === 'Registered';
     const newLicenseNo = isRegistered ? row.querySelector('.edit-license').value.trim().toUpperCase() : '';
+    const newPaOrNo = isRegistered ? row.querySelector('.edit-paor').value.trim().toUpperCase() : '';
     const newDateRegistered = isRegistered ? row.querySelector('.edit-date-registered').value : '';
 
     const data = new URLSearchParams({
@@ -898,9 +951,9 @@
       name: newName,
       email: newEmail,
       region: newRegion,
-      pafteOrNo: newPafteOrNo,
       status: newStatus,
       licenseNo: newLicenseNo,
+      paOrNo: newPaOrNo,
       dateRegistered: newDateRegistered
     });
 
@@ -909,9 +962,9 @@
       r.name = newName;
       r.email = newEmail;
       r.region = newRegion;
-      r.pafteOrNo = newPafteOrNo;
       r.status = newStatus;
       r.licenseNo = newLicenseNo;
+      r.paOrNo = newPaOrNo;
       r.dateRegistered = newDateRegistered;
       r.lastUpdated = new Date().toISOString();
       responsesStatus.textContent = 'Record updated.';
@@ -926,16 +979,16 @@
 
   /* ---------- Export ---------- */
   function buildExportRows() {
-    const header = ['Name', 'Email', 'Region', 'PAFTE OR No.', 'Status', 'License No.', 'Date Registered', 'Submitted', 'Last Updated'];
+    const header = ['Name', 'Email', 'Region', 'Status', 'License No.', 'PAFTE OR No.', 'Date Registered', 'Submitted', 'Last Updated'];
     const rows = responses.map(r => {
       const isRegistered = r.status === 'Registered';
       return [
         r.name,
         r.email,
         r.region,
-        r.pafteOrNo,
         r.status || '',
         isRegistered && r.licenseNo ? r.licenseNo : '',
+        isRegistered && r.paOrNo ? r.paOrNo : '',
         isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '',
         formatDate(r.timestamp),
         r.lastUpdated ? formatDate(r.lastUpdated) : ''
@@ -946,6 +999,7 @@
 
   exportCsvBtn.addEventListener('click', () => {
     const { header, rows } = buildExportRows();
+    // CSV is plain text, so it's searchable by nature — nothing extra needed here.
     const csv = [header].concat(rows).map(row => row.map(csvEscape).join(',')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'pafte-verification-responses.csv');
   });
@@ -959,20 +1013,15 @@
     const { header, rows } = buildExportRows();
     const ws = XLSX.utils.aoa_to_sheet([header].concat(rows));
 
-    // Reasonable column widths so the sheet reads well when printed
-    ws['!cols'] = header.map((h, i) => ({
-      wch: i === 0 || i === 1 ? 26 : (i === 2 ? 22 : 16)
-    }));
-
-    // Print setup: landscape orientation, fit all columns to one page wide
-    ws['!pageSetup'] = {
-      orientation: 'landscape',
-      fitToWidth: 1,
-      fitToHeight: 0,
-      paperSize: 9 // A4
-    };
-    ws['!fitToPage'] = true;
-    ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
+    // Reasonable column widths so it reads well and prints cleanly without manual resizing.
+    ws['!cols'] = header.map((h, i) => {
+      const maxLen = Math.max(h.length, ...rows.map(row => String(row[i] ?? '').length));
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 40) };
+    });
+    // Landscape + fit-to-width print setup (supported by most Excel/LibreOffice/Sheets readers;
+    // if your version ignores it, set Page Layout → Orientation → Landscape manually before printing).
+    ws['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 };
+    ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Responses');
@@ -988,44 +1037,37 @@
     const { header, rows } = buildExportRows();
     const { jsPDF } = window.jspdf;
 
-    // Landscape A4 gives the most usable width for a 9-column table
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    // Landscape A4 gives the most room for 9 columns to fit on the page.
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const generatedOn = new Date().toLocaleString();
 
     doc.setFontSize(14);
-    doc.text('PAFTE Verification — Responses', 30, 28);
+    doc.text('PAFTE Verification — Responses', 14, 14);
     doc.setFontSize(9);
     doc.setTextColor(110);
-    doc.text('Generated ' + generatedOn, 30, 42);
+    doc.text('Generated ' + new Date().toLocaleString(), 14, 20);
     doc.setTextColor(0);
 
     doc.autoTable({
-      startY: 52,
+      startY: 25,
       head: [header],
       body: rows,
-      styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak', valign: 'top' },
-      headStyles: { fillColor: [110, 20, 35], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [250, 246, 238] },
-      theme: 'grid',
-      margin: { left: 24, right: 24, top: 40, bottom: 30 },
-      tableWidth: 'auto', // shrinks/expands columns to fit the page width, so nothing gets cut off
-      // Real (selectable/searchable) text is drawn for every cell — this is a vector PDF, not an image.
-      didDrawPage: function () {
-        doc.setFontSize(8);
-        doc.setTextColor(130);
-        doc.text('PAFTE Verification', 24, pageHeight - 15);
-      }
+      styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak' }, // linebreak wraps long text to fit the page instead of cutting it off
+      headStyles: { fillColor: [110, 20, 35], fontSize: 7.5 },
+      margin: { left: 8, right: 8 },
+      tableWidth: 'auto',
+      // Every cell is drawn as real, selectable text (not an image), so the PDF is searchable
+      // and its text can be copied — this is jsPDF/autoTable's default behavior.
     });
 
-    // Page numbers, added after the table is fully laid out so the total page count is known
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
+    // Add "Page X of Y" to every page, bottom-right — done as a second pass since the
+    // total page count isn't known until the whole table has been laid out.
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.setTextColor(130);
-      doc.text('Page ' + i + ' of ' + pageCount, pageWidth - 90, pageHeight - 15);
+      doc.setTextColor(120);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - 8, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
     }
 
     doc.save('pafte-verification-responses.pdf');
