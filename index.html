@@ -447,6 +447,11 @@
       </div>
 
       <div class="field">
+        <label for="paOrNo">PAFTE OR No.</label>
+        <input type="text" id="paOrNo" name="paOrNo" placeholder="e.g. OR-000123">
+      </div>
+
+      <div class="field">
         <label for="region">Place of Registration</label>
         <select id="region" name="region" required>
           <option value="" disabled selected>Select a region</option>
@@ -490,11 +495,6 @@
       <div class="field" id="licenseNoField" style="display:none;">
         <label for="licenseNo">License No.</label>
         <input type="text" id="licenseNo" name="licenseNo" placeholder="e.g. 0123456">
-      </div>
-
-      <div class="field" id="paOrNoField" style="display:none;">
-        <label for="paOrNo">PAFTE OR No.</label>
-        <input type="text" id="paOrNo" name="paOrNo" placeholder="e.g. OR-000123">
       </div>
 
       <div class="field" id="dateRegisteredField" style="display:none;">
@@ -545,7 +545,7 @@
 
 <script>
   // ── CONFIGURE THIS ──────────────────────────────────────────────
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxz7mMDHtqYZP6ZjiOmXLm1OdQMLfRsSjKHfIij8kqse6OZcAkWd1C2vIl0bl2gzKmz/exec";
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOsSMpYFcuXFxngIJx3hj5F0zOuBFDiNDSOVsHpOuTin5lGQAaNzUuI-qXxnE0RiAE/exec";
   // ─────────────────────────────────────────────────────────────────
 
   let responses = []; // holds the currently loaded response objects
@@ -585,8 +585,7 @@
   const regStatusText = document.getElementById('regStatusText');
   const licenseNoField = document.getElementById('licenseNoField');
   const licenseNoInput = document.getElementById('licenseNo');
-  const paOrNoField = document.getElementById('paOrNoField');
-  const paOrNoInput = document.getElementById('paOrNo');
+  const paOrNoInput = document.getElementById('paOrNo'); // always visible, not tied to the toggle
   const dateRegisteredField = document.getElementById('dateRegisteredField');
   const dateRegisteredInput = document.getElementById('dateRegistered');
 
@@ -597,11 +596,9 @@
     regStatusToggle.classList.toggle('on', isRegistered);
     regStatusToggle.setAttribute('aria-checked', String(isRegistered));
 
-    // Only when switched to Registered do the License No., PAFTE OR No., and Date of Registration boxes appear.
+    // Only when switched to Registered do the License No. and Date of Registration boxes appear.
     licenseNoField.style.display = isRegistered ? 'block' : 'none';
     licenseNoInput.required = isRegistered;
-    paOrNoField.style.display = isRegistered ? 'block' : 'none';
-    paOrNoInput.required = isRegistered;
     dateRegisteredField.style.display = isRegistered ? 'block' : 'none';
     dateRegisteredInput.required = isRegistered;
     if (isRegistered && !dateRegisteredInput.value) {
@@ -609,7 +606,6 @@
     }
     if (!isRegistered) {
       licenseNoInput.value = '';
-      paOrNoInput.value = '';
     }
   }
 
@@ -617,7 +613,7 @@
     setRegistrationStatus(statusSelect.value === 'Registered' ? 'Not Registered' : 'Registered');
   });
 
-  // Starts as "Not Registered" — License No., PAFTE OR No., and Date of Registration stay hidden until toggled on.
+  // Starts as "Not Registered" — License No. and Date of Registration stay hidden until toggled on.
   setRegistrationStatus('Not Registered');
 
   /* ---------- Force ALL CAPS on free-text fields, live as the person types ---------- */
@@ -676,7 +672,7 @@
     const isRegistered = statusSelect.value === 'Registered';
     const dateRegistered = isRegistered ? dateRegisteredInput.value : '';
     const licenseNo = isRegistered ? licenseNoInput.value.trim().toUpperCase() : '';
-    const paOrNo = isRegistered ? paOrNoInput.value.trim().toUpperCase() : '';
+    const paOrNo = paOrNoInput.value.trim().toUpperCase();
 
     const payload = {
       name: form.fullName.value.trim().toUpperCase(),
@@ -734,6 +730,8 @@
       form.reset();
       setRegistrationStatus('Not Registered');
       otherRegionField.style.display = 'none';
+      // Keep the Responses tab in sync automatically — no manual refresh needed.
+      loadResponses();
     } catch (err) {
       statusEl.textContent = 'Could not reach the ledger. Check your connection and try again.';
       statusEl.className = 'status err';
@@ -853,7 +851,7 @@
         <td class="cell-region col-region" data-label="Region">${escapeHtml(r.region)}</td>
         <td class="cell-status col-status" data-label="Status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
         <td class="cell-license col-license" data-label="License No.">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
-        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${isRegistered && r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
+        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
         <td class="cell-date-registered col-date" data-label="Date Registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
         <td class="col-submitted" data-label="Submitted">${formatDate(r.timestamp)}</td>
         <td class="col-updated" data-label="Last Updated">${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
@@ -891,7 +889,7 @@
     row.querySelector('.cell-license').innerHTML =
       `<input type="text" class="edit-license" value="${isRegistered ? escapeAttr(r.licenseNo || '') : ''}" placeholder="License No." ${isRegistered ? '' : 'style="display:none;"'}>`;
     row.querySelector('.cell-paor').innerHTML =
-      `<input type="text" class="edit-paor" value="${isRegistered ? escapeAttr(r.paOrNo || '') : ''}" placeholder="PAFTE OR No." ${isRegistered ? '' : 'style="display:none;"'}>`;
+      `<input type="text" class="edit-paor" value="${escapeAttr(r.paOrNo || '')}" placeholder="PAFTE OR No.">`;
     row.querySelector('.cell-date-registered').innerHTML =
       `<input type="date" class="edit-date-registered" value="${r.dateRegistered ? toDateInputValue(r.dateRegistered) : ''}" ${isRegistered ? '' : 'style="display:none;"'}>`;
 
@@ -900,18 +898,17 @@
     const paOrEditInput = row.querySelector('.edit-paor');
     const dateEditInput = row.querySelector('.edit-date-registered');
 
-    // Only when switched to Registered do the License No., PAFTE OR No., and Date of Registration boxes appear.
+    // Only when switched to Registered do the License No. and Date of Registration boxes appear.
+    // PAFTE OR No. always stays visible/editable.
     statusEditSelect.addEventListener('change', () => {
       const nowRegistered = statusEditSelect.value === 'Registered';
       licenseEditInput.style.display = nowRegistered ? 'block' : 'none';
-      paOrEditInput.style.display = nowRegistered ? 'block' : 'none';
       dateEditInput.style.display = nowRegistered ? 'block' : 'none';
       if (nowRegistered && !dateEditInput.value) {
         dateEditInput.value = new Date().toISOString().slice(0, 10);
       }
       if (!nowRegistered) {
         licenseEditInput.value = '';
-        paOrEditInput.value = '';
       }
     });
     licenseEditInput.addEventListener('input', forceUppercase);
@@ -942,7 +939,7 @@
     const newStatus = row.querySelector('.edit-status').value;
     const isRegistered = newStatus === 'Registered';
     const newLicenseNo = isRegistered ? row.querySelector('.edit-license').value.trim().toUpperCase() : '';
-    const newPaOrNo = isRegistered ? row.querySelector('.edit-paor').value.trim().toUpperCase() : '';
+    const newPaOrNo = row.querySelector('.edit-paor').value.trim().toUpperCase();
     const newDateRegistered = isRegistered ? row.querySelector('.edit-date-registered').value : '';
 
     const data = new URLSearchParams({
@@ -988,7 +985,7 @@
         r.region,
         r.status || '',
         isRegistered && r.licenseNo ? r.licenseNo : '',
-        isRegistered && r.paOrNo ? r.paOrNo : '',
+        r.paOrNo ? r.paOrNo : '',
         isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '',
         formatDate(r.timestamp),
         r.lastUpdated ? formatDate(r.lastUpdated) : ''
