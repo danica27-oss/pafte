@@ -585,7 +585,7 @@
   const regStatusText = document.getElementById('regStatusText');
   const licenseNoField = document.getElementById('licenseNoField');
   const licenseNoInput = document.getElementById('licenseNo');
-  const paOrNoInput = document.getElementById('paOrNo'); // always visible, not tied to the toggle
+  const paOrNoInput = document.getElementById('paOrNo');
   const dateRegisteredField = document.getElementById('dateRegisteredField');
   const dateRegisteredInput = document.getElementById('dateRegistered');
 
@@ -848,10 +848,10 @@
       html += `<tr data-idx="${idx}">
         <td class="cell-name col-name" data-label="Name">${escapeHtml(r.name)}</td>
         <td class="cell-email col-email" data-label="Email">${escapeHtml(r.email)}</td>
+        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
         <td class="cell-region col-region" data-label="Region">${escapeHtml(r.region)}</td>
         <td class="cell-status col-status" data-label="Status"><span class="status-pill ${isRegistered ? 'registered' : 'not-registered'}">${escapeHtml(r.status || 'Not Registered')}</span></td>
         <td class="cell-license col-license" data-label="License No.">${isRegistered && r.licenseNo ? escapeHtml(r.licenseNo) : '—'}</td>
-        <td class="cell-paor col-paor" data-label="PAFTE OR No.">${r.paOrNo ? escapeHtml(r.paOrNo) : '—'}</td>
         <td class="cell-date-registered col-date" data-label="Date Registered">${isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '—'}</td>
         <td class="col-submitted" data-label="Submitted">${formatDate(r.timestamp)}</td>
         <td class="col-updated" data-label="Last Updated">${r.lastUpdated ? formatDate(r.lastUpdated) : '—'}</td>
@@ -874,6 +874,7 @@
 
     row.querySelector('.cell-name').innerHTML = `<input type="text" class="edit-name" value="${escapeAttr(r.name)}">`;
     row.querySelector('.cell-email').innerHTML = `<input type="email" class="edit-email" value="${escapeAttr(r.email)}">`;
+     row.querySelector('.cell-paor').innerHTML = `<input type="text" class="edit-paor" value="${escapeAttr(r.paOrNo)}">`;
     row.querySelector('.cell-region').innerHTML = buildRegionEditHTML(r.region);
     const regionEditSelect = row.querySelector('.edit-region-select');
     const regionEditOther = row.querySelector('.edit-region-other');
@@ -888,8 +889,6 @@
       </select>`;
     row.querySelector('.cell-license').innerHTML =
       `<input type="text" class="edit-license" value="${isRegistered ? escapeAttr(r.licenseNo || '') : ''}" placeholder="License No." ${isRegistered ? '' : 'style="display:none;"'}>`;
-    row.querySelector('.cell-paor').innerHTML =
-      `<input type="text" class="edit-paor" value="${escapeAttr(r.paOrNo || '')}" placeholder="PAFTE OR No.">`;
     row.querySelector('.cell-date-registered').innerHTML =
       `<input type="date" class="edit-date-registered" value="${r.dateRegistered ? toDateInputValue(r.dateRegistered) : ''}" ${isRegistered ? '' : 'style="display:none;"'}>`;
 
@@ -932,6 +931,7 @@
 
     const newName = row.querySelector('.edit-name').value.trim().toUpperCase();
     const newEmail = row.querySelector('.edit-email').value.trim();
+    const newPaOrNo = row.querySelector('.edit-paor').value.trim().toUpperCase();
     const newRegionSelectVal = row.querySelector('.edit-region-select').value;
     const newRegion = newRegionSelectVal === '__other__'
       ? row.querySelector('.edit-region-other').value.trim().toUpperCase()
@@ -939,7 +939,6 @@
     const newStatus = row.querySelector('.edit-status').value;
     const isRegistered = newStatus === 'Registered';
     const newLicenseNo = isRegistered ? row.querySelector('.edit-license').value.trim().toUpperCase() : '';
-    const newPaOrNo = row.querySelector('.edit-paor').value.trim().toUpperCase();
     const newDateRegistered = isRegistered ? row.querySelector('.edit-date-registered').value : '';
 
     const data = new URLSearchParams({
@@ -947,10 +946,10 @@
       id: r.id,
       name: newName,
       email: newEmail,
+      paOrNo: newPaOrNo,
       region: newRegion,
       status: newStatus,
       licenseNo: newLicenseNo,
-      paOrNo: newPaOrNo,
       dateRegistered: newDateRegistered
     });
 
@@ -958,10 +957,10 @@
       await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: data });
       r.name = newName;
       r.email = newEmail;
+      r.paOrNo = newPaOrNo;
       r.region = newRegion;
       r.status = newStatus;
       r.licenseNo = newLicenseNo;
-      r.paOrNo = newPaOrNo;
       r.dateRegistered = newDateRegistered;
       r.lastUpdated = new Date().toISOString();
       responsesStatus.textContent = 'Record updated.';
@@ -982,10 +981,10 @@
       return [
         r.name,
         r.email,
+        r.paOrNo,
         r.region,
         r.status || '',
         isRegistered && r.licenseNo ? r.licenseNo : '',
-        r.paOrNo ? r.paOrNo : '',
         isRegistered && r.dateRegistered ? formatDateOnly(r.dateRegistered) : '',
         formatDate(r.timestamp),
         r.lastUpdated ? formatDate(r.lastUpdated) : ''
