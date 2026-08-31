@@ -8,8 +8,9 @@
  *           the duplicate-name/email check on the record form
  *
  * Sheet columns (created by setup()):
- *  A: ID | B: Timestamp | C: Name | D: Email | E: Region | F: Status
- *  G: License No. | H: PAFTE OR No. | I: Date of Registration | J: Last Updated
+ * 
+ *  *  A: ID | B: Timestamp | C: Name | D: Email | E: PAFTE OR No. | F: Region
+ *  G: Status | H: License No. | I: Date of Registration | J: Last Updated
  *
  * License No., PAFTE OR No., and Date of Registration are only ever
  * populated when Status is "Registered" — they're cleared whenever a row
@@ -30,10 +31,10 @@ function doGet(e) {
       timestamp: data[i][1],
       name: data[i][2],
       email: data[i][3],
-      region: data[i][4],
-      status: data[i][5],
-      licenseNo: data[i][6],
-      paOrNo: data[i][7],
+     paOrNo: data[i][4],
+      region: data[i][5],
+      status: data[i][6],
+      licenseNo: data[i][7],
       dateRegistered: data[i][8],
       lastUpdated: data[i][9]
     });
@@ -59,13 +60,13 @@ function doPost(e) {
         var isRegistered = newStatus === 'Registered';
         sheet.getRange(row, 3).setValue(e.parameter.name || data[i][2]);
         sheet.getRange(row, 4).setValue(e.parameter.email || data[i][3]);
-        sheet.getRange(row, 5).setValue(e.parameter.region || data[i][4]);
-        sheet.getRange(row, 6).setValue(newStatus);
-        // License No., PAFTE OR No., and Date of Registration only persist while Registered.
+        sheet.getRange(row, 5).setValue(e.parameter.paOrNo || data[i][4]);
+        sheet.getRange(row, 6).setValue(e.parameter.region || data[i][5]);
+        sheet.getRange(row, 7).setValue(newStatus);
+        // License No., and Date of Registration only persist while Registered.
         sheet.getRange(row, 7).setValue(isRegistered ? (e.parameter.licenseNo || '') : '');
-        sheet.getRange(row, 8).setValue(isRegistered ? (e.parameter.paOrNo || '') : '');
-        sheet.getRange(row, 9).setValue(isRegistered ? (e.parameter.dateRegistered || '') : '');
-        sheet.getRange(row, 10).setValue(new Date());
+        sheet.getRange(row, 8).setValue(isRegistered ? (e.parameter.dateRegistered || '') : '');
+        sheet.getRange(row, 9).setValue(new Date());
         break;
       }
     }
@@ -78,10 +79,10 @@ function doPost(e) {
       new Date(),
       e.parameter.name || '',
       e.parameter.email || '',
+      e.parameter.paOrNo || '',
       e.parameter.region || '',
       status,
       isRegistered ? (e.parameter.licenseNo || '') : '',
-      isRegistered ? (e.parameter.paOrNo || '') : '',
       isRegistered ? (e.parameter.dateRegistered || '') : '',
       ''
     ]);
@@ -96,5 +97,5 @@ function doPost(e) {
 // to create the header row.
 function setup() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.appendRow(['ID', 'Timestamp', 'Name (Surname, Given Name, Middle Name)', 'Email', 'Place of Registration', 'Status', 'License No.', 'PAFTE OR No.', 'Date of Registration', 'Last Updated']);
+  sheet.appendRow(['ID', 'Timestamp', 'Name (Surname, Given Name, Middle Name)', 'Email', 'PAFTE OR No.', 'Place of Registration', 'Status', 'License No.', 'Date of Registration', 'Last Updated']);
 }
